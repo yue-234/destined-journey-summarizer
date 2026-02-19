@@ -1,0 +1,38 @@
+{
+  "name": "destiny-poem-summary-assistant",
+  "version": "2.5.0",
+  "description": "命定之诗角色卡专用的 SillyTavern 总结脚本，用于自动/手动总结聊天内容并存入世界书",
+  "main": "dist/命定之诗总结脚本.js",
+  "scripts": {
+    "build": "node build.js",
+    "prebuild": "node -e \"const fs=require('fs');if(!fs.existsSync('dist'))fs.mkdirSync('dist');\""
+  },
+  "keywords": [
+    "SillyTavern",
+    "命定之诗",
+    "总结助手",
+    "世界书",
+    "AI",
+    "聊天机器人"
+  ],
+  "author": "Rhys_z_瑞",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/destiny-poem-summary-assistant.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/destiny-poem-summary-assistant/issues"
+  },
+  "homepage": "https://github.com/yourusername/destiny-poem-summary-assistant#readme",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "files": [
+    "dist/",
+    "src/",
+    "build.js",
+    "README.md",
+    "LICENSE"
+  ]
+}
