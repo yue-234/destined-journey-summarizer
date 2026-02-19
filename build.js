@@ -9,7 +9,7 @@
  * - 输出可直接在 SillyTavern 中使用的单文件脚本
  *
  * 用法: node build.js
- * 输出: dist/命定之诗总结脚本v2.5.js
+ * 输出: dist/destined-journey-summarizer.js
  *
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -48,7 +48,7 @@ const MODULE_ORDER = [
 
 // 构建输出配置
 const OUTPUT_DIR = 'dist';
-const OUTPUT_FILE = '命定之诗总结脚本.js';
+const OUTPUT_FILE = 'destined-journey-summarizer.js';
 
 /**
  * 主构建函数

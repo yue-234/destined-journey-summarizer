@@ -1,5 +1,7 @@
 # 贡献指南
 
+> **📝 声明：本文档内容全部由 AI 生成**
+
 感谢你对命定之诗总结助手项目的关注！我们欢迎任何形式的贡献。
 
 ## 🤝 如何贡献
@@ -8,7 +10,7 @@
 
 如果你发现了 Bug 或有功能建议：
 
-1. 在 [Issues](https://github.com/yourusername/destiny-poem-summary-assistant/issues) 页面搜索是否已有相关问题
+1. 在 [Issues](https://github.com/yourusername/destined-journey-summarizer/issues) 页面搜索是否已有相关问题
 2. 如果没有，创建新的 Issue
 3. 清晰描述问题或建议，包括：
    - 问题的详细描述
@@ -25,8 +27,8 @@
 1. Fork 本仓库
 2. 克隆你的 Fork：
 ```bash
-git clone https://github.com/your-username/destiny-poem-summary-assistant.git
-cd destiny-poem-summary-assistant
+git clone https://github.com/your-username/destined-journey-summarizer.git
+cd destined-journey-summarizer
 ```
 
 3. 创建新分支：
@@ -212,7 +214,7 @@ git push origin feature/your-feature-name
 
 ## 📋 开发路线图
 
-查看 [Issues](https://github.com/yourusername/destiny-poem-summary-assistant/issues) 中标记为 `enhancement` 的内容，了解计划中的功能。
+查看 [Issues](https://github.com/yourusername/destined-journey-summarizer/issues) 中标记为 `enhancement` 的内容，了解计划中的功能。
 
 ## 🏆 贡献者
 

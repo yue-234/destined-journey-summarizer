@@ -1,16 +1,31 @@
 # 使用说明
 
+> **📝 声明：本文档内容全部由 AI 生成**
+
 本文档详细介绍如何使用命定之诗总结助手。
 
 ## 📋 目录
 
+- [重要依赖](#重要依赖)
 - [安装部署](#安装部署)
 - [基本使用](#基本使用)
 - [配置说明](#配置说明)
 - [功能详解](#功能详解)
 - [常见问题](#常见问题)
 
+## 重要依赖
+
+⚠️ **本脚本必须在 [JS-Slash-Runner](https://github.com/N0VI028/JS-Slash-Runner) 插件环境中运行**
+
+JS-Slash-Runner 是 SillyTavern 的酒馆助手插件，为本脚本提供了必要的运行环境和全局函数支持。
+
+**必须先安装并启用 JS-Slash-Runner 插件，本脚本才能正常工作。**
+
 ## 安装部署
+
+### 0. 安装 JS-Slash-Runner 插件
+
+在使用本脚本前，请先确保已安装 [JS-Slash-Runner](https://github.com/N0VI028/JS-Slash-Runner) 插件。
 
 ### 1. 构建脚本
 
@@ -20,13 +35,13 @@
 node build.js
 ```
 
-构建成功后，会在 `dist/` 目录下生成 `命定之诗总结脚本.js` 文件。
+构建成功后，会在 `dist/` 目录下生成 `destined-journey-summarizer.js` 文件。
 
 ### 2. 导入到 SillyTavern
 
 1. 打开 SillyTavern
 2. 进入脚本管理界面
-3. 导入构建生成的 `命定之诗总结脚本.js` 文件
+3. 导入构建生成的 `destined-journey-summarizer.js` 文件
 4. 启用脚本
 
 ## 基本使用

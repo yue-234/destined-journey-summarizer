@@ -1,8 +1,8 @@
 {
-  "name": "destiny-poem-summary-assistant",
+  "name": "destined-journey-summarizer",
   "version": "2.5.0",
   "description": "命定之诗角色卡专用的 SillyTavern 总结脚本，用于自动/手动总结聊天内容并存入世界书",
-  "main": "dist/命定之诗总结脚本.js",
+  "main": "dist/destined-journey-summarizer.js",
   "scripts": {
     "build": "node build.js",
     "prebuild": "node -e \"const fs=require('fs');if(!fs.existsSync('dist'))fs.mkdirSync('dist');\""
@@ -19,12 +19,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/destiny-poem-summary-assistant.git"
+    "url": "git+https://github.com/yourusername/destined-journey-summarizer.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/destiny-poem-summary-assistant/issues"
+    "url": "https://github.com/yourusername/destined-journey-summarizer/issues"
   },
-  "homepage": "https://github.com/yourusername/destiny-poem-summary-assistant#readme",
+  "homepage": "https://github.com/yourusername/destined-journey-summarizer#readme",
   "engines": {
     "node": ">=12.0.0"
   },

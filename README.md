@@ -1,12 +1,14 @@
 # 命定之诗总结助手
 
+> **📝 声明：本项目的文档和代码注释内容全部由 AI 生成**
+
 <div align="center">
 
 **命定之诗角色卡专用的 SillyTavern 总结脚本**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D12.0.0-brightgreen)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.5.0-blue)](https://github.com/yourusername/destiny-poem-summary-assistant)
+[![Version](https://img.shields.io/badge/version-2.5.0-blue)](https://github.com/yourusername/destined-journey-summarizer)
 
 用于自动/手动总结聊天内容并存入世界书
 
@@ -22,19 +24,26 @@
 - 🎨 **友好界面**：提供可视化设置面板和状态显示
 - 🔄 **模块化设计**：清晰的代码结构，易于维护和扩展
 
+## ⚠️ 重要依赖
+
+本脚本是 **[JS-Slash-Runner](https://github.com/N0VI028/JS-Slash-Runner)** 酒馆助手插件的运行脚本，**必须**在安装并启用该插件的 SillyTavern 环境中才能运行。
+
+脚本中使用的所有全局函数（如 `replaceScriptButtons`、`eventOn`、`getVariables`、`getChatMessages`、`toastr` 等）均由 JS-Slash-Runner 插件提供，离开该插件环境脚本将无法正常工作。
+
 ## 📦 安装
 
 ### 前置要求
 
-- [Node.js](https://nodejs.org/) >= 12.0.0
 - [SillyTavern](https://github.com/SillyTavern/SillyTavern)
+- [JS-Slash-Runner 酒馆助手插件](https://github.com/N0VI028/JS-Slash-Runner)（**必须安装**）
+- [Node.js](https://nodejs.org/) >= 12.0.0（仅构建时需要）
 
 ### 构建步骤
 
 1. 克隆仓库：
 ```bash
-git clone https://github.com/yourusername/destiny-poem-summary-assistant.git
-cd destiny-poem-summary-assistant
+git clone https://github.com/yourusername/destined-journey-summarizer.git
+cd destined-journey-summarizer
 ```
 
 2. 运行构建脚本：
@@ -42,7 +51,7 @@ cd destiny-poem-summary-assistant
 node build.js
 ```
 
-3. 构建产物将输出到 `dist/命定之诗总结脚本.js`
+3. 构建产物将输出到 `dist/destined-journey-summarizer.js`
 
 4. 将生成的脚本文件导入到 SillyTavern 中使用
 
@@ -125,8 +134,9 @@ node build.js
 ## ⚠️ 注意事项
 
 - ⚡ 本脚本专为**命定之诗角色卡**设计，用于其它角色卡不保证效果
-- 🔒 脚本运行在 SillyTavern 的脚本沙盒环境中
-- 🔌 依赖 SillyTavern 提供的全局 API（如 `getVariables`、`getChatMessages`、`eventOn` 等）
+- 🔌 **必须依赖** [JS-Slash-Runner](https://github.com/N0VI028/JS-Slash-Runner) 插件环境才能运行
+- 🔒 脚本运行在 JS-Slash-Runner 提供的沙盒环境中
+- 📡 所有全局函数（`replaceScriptButtons`、`eventOn`、`getVariables`、`getChatMessages`、`toastr` 等）均由 JS-Slash-Runner 插件提供
 
 ## 📝 更新日志
 
