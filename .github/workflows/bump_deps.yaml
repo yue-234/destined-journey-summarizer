@@ -28,12 +28,12 @@ jobs:
         pnpm update
         pnpm install --lockfile-only
 
-    - run: |-
-        rm -rf @types
-        mkdir -p @types
-        wget https://gitlab.com/novi028/JS-Slash-Runner/-/raw/main/dist/@types.zip -O @types.zip
-        unzip -q @types.zip -d @types
-        rm -f @types.zip
+      - run: |-
+          rm -rf @types
+          mkdir -p @types
+          wget https://gitlab.com/novi028/JS-Slash-Runner/-/raw/main/dist/@types.zip -O @types.zip
+          tar -xf @types.zip -C @types
+          rm -f @types.zip
 
     - name: Commit changes
       uses: EndBug/add-and-commit@v9.1.3
