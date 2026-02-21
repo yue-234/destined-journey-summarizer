@@ -114,7 +114,7 @@ const buildMegaSummaryPromptParams = errorCatched(async (summaryNames, entryName
   }
   
   return {
-    promptBlocks: DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS || [],
+    promptBlocks: settings.megaPromptBlocks || DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS || [],
     oldMegaSummaryContent,
     mergedSummaryText,
   };

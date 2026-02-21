@@ -67,8 +67,8 @@ const showSettingsPopup = errorCatched(async () => {
 
 // ---- 设置收集 ----
 
-const collectBlocksFromPanel = (overlay) => {
-  const container = overlay.querySelector('#sa-blocks-container');
+const collectBlocksFromPanel = (overlay, containerId = '#sa-blocks-container') => {
+  const container = overlay.querySelector(containerId);
   if (!container) return [];
   const blockEls = container.querySelectorAll('.sa-block');
   const blocks = [];
@@ -78,6 +78,7 @@ const collectBlocksFromPanel = (overlay) => {
     const enableCb = el.querySelector(`[data-block-enable="${id}"]`);
     const roleSelect = el.querySelector(`#sa-block-role-${id}`);
     const contentArea = el.querySelector(`[data-block-content="${id}"]`);
+    const leadTextInput = el.querySelector(`[data-block-lead-text="${id}"]`);
     const nameEl = el.querySelector('.sa-block-name');
     const typeBadge = el.querySelector('.sa-block-type-badge');
     let type = BLOCK_TYPES.PROMPT;
@@ -93,6 +94,7 @@ const collectBlocksFromPanel = (overlay) => {
     };
     if (roleSelect) block.role = roleSelect.value;
     if (contentArea) block.content = contentArea.value;
+    if (leadTextInput) block.leadText = leadTextInput.value;
     blocks.push(block);
   });
   return blocks;
@@ -118,7 +120,8 @@ const collectSettingsFromPanel = (overlay) => {
     maxTokens: val('sa-max-tokens') || 'same_as_preset',
     includeTags: parseTagString(val('sa-include-tags')),
     excludeTags: parseTagString(val('sa-exclude-tags')),
-    promptBlocks: collectBlocksFromPanel(overlay),
+    promptBlocks: collectBlocksFromPanel(overlay, '#sa-blocks-container'),
+    megaPromptBlocks: collectBlocksFromPanel(overlay, '#sa-mega-blocks-container'),
   };
 };
 
@@ -126,13 +129,13 @@ const collectSettingsFromPanel = (overlay) => {
 
 let _draggedBlockId = null;
 
-const rerenderBlocks = (overlay, blocks) => {
-  const container = overlay.querySelector('#sa-blocks-container');
+const rerenderBlocks = (overlay, blocks, containerId = '#sa-blocks-container') => {
+  const container = overlay.querySelector(containerId);
   if (!container) return;
-  container.innerHTML = renderBlocks(blocks);
+  container.innerHTML = renderBlocks(blocks, containerId.replace('#', ''));
 };
 
-const addNewBlock = async (overlay) => {
+const addNewBlock = async (overlay, containerId = '#sa-blocks-container') => {
   const result = await SillyTavern.callGenericPopup(
     '请输入新板块的名称：',
     SillyTavern.POPUP_TYPE.INPUT,
@@ -145,7 +148,7 @@ const addNewBlock = async (overlay) => {
     !result.trim()
   )
     return;
-  const blocks = collectBlocksFromPanel(overlay);
+  const blocks = collectBlocksFromPanel(overlay, containerId);
   blocks.push({
     id: generateBlockId(),
     type: BLOCK_TYPES.PROMPT,
@@ -154,27 +157,27 @@ const addNewBlock = async (overlay) => {
     content: '',
     enabled: true,
   });
-  rerenderBlocks(overlay, blocks);
+  rerenderBlocks(overlay, blocks, containerId);
 };
 
-const deleteBlock = async (overlay, blockId) => {
+const deleteBlock = async (overlay, blockId, containerId = '#sa-blocks-container') => {
   const cfm = await SillyTavern.callGenericPopup(
     '确定要删除这个自定义板块吗？',
     SillyTavern.POPUP_TYPE.CONFIRM
   );
   if (cfm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
-  const blocks = collectBlocksFromPanel(overlay).filter((b) => b.id !== blockId);
-  rerenderBlocks(overlay, blocks);
+  const blocks = collectBlocksFromPanel(overlay, containerId).filter((b) => b.id !== blockId);
+  rerenderBlocks(overlay, blocks, containerId);
 };
 
-const resetBlocks = async (overlay) => {
+const resetBlocks = async (overlay, containerId = '#sa-blocks-container', defaultBlocks = DEFAULT_PROMPT_BLOCKS) => {
   const cfm = await SillyTavern.callGenericPopup(
     '确定要重置所有提示词板块为默认值吗？',
     SillyTavern.POPUP_TYPE.CONFIRM
   );
   if (cfm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
-  const defaults = DEFAULT_PROMPT_BLOCKS.map((b) => ({ ...b }));
-  rerenderBlocks(overlay, defaults);
+  const defaults = defaultBlocks.map((b) => ({ ...b }));
+  rerenderBlocks(overlay, defaults, containerId);
   toastr.success('提示词板块已重置');
 };
 
@@ -200,26 +203,30 @@ const viewEditEntry = async (overlay, entryName) => {
 
 // ---- 板块事件绑定 ----
 
-const bindBlockEvents = (overlay) => {
-  const container = overlay.querySelector('#sa-blocks-container');
+const bindBlockEventsForContainer = (overlay, containerId, defaultBlocks) => {
+  const container = overlay.querySelector(containerId);
   if (!container || container._blockEventsBound) return;
   container._blockEventsBound = true;
 
   container.addEventListener('click', (e) => {
     const target = e.target;
     if (target.closest('.sa-block-enable') || target.tagName === 'INPUT') return;
-    if (target.closest('[data-action-add-block]')) {
-      addNewBlock(overlay);
+    if (target.closest('[data-action-add-block]') || target.closest('[data-action-add-mega-block]')) {
+      addNewBlock(overlay, containerId);
       return;
     }
     if (target.closest('[data-action-reset-blocks]')) {
-      resetBlocks(overlay);
+      resetBlocks(overlay, containerId, DEFAULT_PROMPT_BLOCKS);
+      return;
+    }
+    if (target.closest('[data-action-reset-mega-blocks]')) {
+      resetBlocks(overlay, containerId, DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS);
       return;
     }
     const deleteEl = target.closest('[data-block-delete]');
     if (deleteEl) {
       e.stopPropagation();
-      deleteBlock(overlay, deleteEl.getAttribute('data-block-delete'));
+      deleteBlock(overlay, deleteEl.getAttribute('data-block-delete'), containerId);
       return;
     }
     const toggleEl = target.closest('[data-block-toggle]');
@@ -280,7 +287,7 @@ const bindBlockEvents = (overlay) => {
     if (!targetBlock || !_draggedBlockId) return;
     const targetId = targetBlock.getAttribute('data-block-id');
     if (targetId === _draggedBlockId) return;
-    const blocks = collectBlocksFromPanel(overlay);
+    const blocks = collectBlocksFromPanel(overlay, containerId);
     const fromIdx = blocks.findIndex((b) => b.id === _draggedBlockId);
     const toIdx = blocks.findIndex((b) => b.id === targetId);
     if (fromIdx < 0 || toIdx < 0) return;
@@ -290,7 +297,7 @@ const bindBlockEvents = (overlay) => {
     let newIdx = blocks.findIndex((b) => b.id === targetId);
     if (!insertBefore) newIdx += 1;
     blocks.splice(newIdx, 0, moved);
-    rerenderBlocks(overlay, blocks);
+    rerenderBlocks(overlay, blocks, containerId);
     _draggedBlockId = null;
   });
 
@@ -359,7 +366,7 @@ const bindBlockEvents = (overlay) => {
       if (targetBlock) {
         const targetId = targetBlock.getAttribute('data-block-id');
         if (targetId && targetId !== _touchBlockId) {
-          const blocks = collectBlocksFromPanel(overlay);
+          const blocks = collectBlocksFromPanel(overlay, containerId);
           const fromIdx = blocks.findIndex((b) => b.id === _touchBlockId);
           const toIdx = blocks.findIndex((b) => b.id === targetId);
           if (fromIdx >= 0 && toIdx >= 0) {
@@ -369,7 +376,7 @@ const bindBlockEvents = (overlay) => {
             let newIdx = blocks.findIndex((b) => b.id === targetId);
             if (!insertBefore) newIdx += 1;
             blocks.splice(newIdx, 0, moved);
-            rerenderBlocks(overlay, blocks);
+            rerenderBlocks(overlay, blocks, containerId);
           }
         }
       }
@@ -386,6 +393,11 @@ const bindBlockEvents = (overlay) => {
     _touchDragEl = null;
     _touchBlockId = null;
   });
+};
+
+const bindBlockEvents = (overlay) => {
+  bindBlockEventsForContainer(overlay, '#sa-blocks-container', DEFAULT_PROMPT_BLOCKS);
+  bindBlockEventsForContainer(overlay, '#sa-mega-blocks-container', DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS);
 };
 
 // ---- 条目列表操作 ----

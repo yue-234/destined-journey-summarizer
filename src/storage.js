@@ -17,6 +17,9 @@ const cloneSettings = (settings) => ({
   promptBlocks: Array.isArray(settings?.promptBlocks)
     ? settings.promptBlocks.map((b) => ({ ...b }))
     : DEFAULT_PROMPT_BLOCKS.map((b) => ({ ...b })),
+  megaPromptBlocks: Array.isArray(settings?.megaPromptBlocks)
+    ? settings.megaPromptBlocks.map((b) => ({ ...b }))
+    : DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS.map((b) => ({ ...b })),
 });
 
 const migrateOldSettings = (raw) => {
@@ -62,8 +65,8 @@ const migrateOldSettings = (raw) => {
   return raw;
 };
 
-const validateBlocks = (blocks) => {
-  if (!Array.isArray(blocks)) return DEFAULT_PROMPT_BLOCKS.map((b) => ({ ...b }));
+const validateBlocks = (blocks, defaultBlocks = DEFAULT_PROMPT_BLOCKS) => {
+  if (!Array.isArray(blocks)) return defaultBlocks.map((b) => ({ ...b }));
   const normalized = blocks
     .map((b) => {
       if (!b || typeof b !== 'object') return null;
@@ -77,7 +80,7 @@ const validateBlocks = (blocks) => {
     })
     .filter(Boolean);
   const byId = new Map(normalized.map((b) => [b.id, b]));
-  for (const defaultBlock of DEFAULT_PROMPT_BLOCKS) {
+  for (const defaultBlock of defaultBlocks) {
     if (!byId.has(defaultBlock.id)) {
       normalized.push({ ...defaultBlock });
     }
@@ -96,7 +99,8 @@ const loadSettings = errorCatched(async () => {
         _cachedSettings.includeTags = [...DEFAULT_SETTINGS.includeTags];
       if (!Array.isArray(_cachedSettings.excludeTags))
         _cachedSettings.excludeTags = [...DEFAULT_SETTINGS.excludeTags];
-      _cachedSettings.promptBlocks = validateBlocks(_cachedSettings.promptBlocks);
+      _cachedSettings.promptBlocks = validateBlocks(_cachedSettings.promptBlocks, DEFAULT_PROMPT_BLOCKS);
+      _cachedSettings.megaPromptBlocks = validateBlocks(_cachedSettings.megaPromptBlocks, DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS);
     } else {
       _cachedSettings = cloneSettings({
         ...DEFAULT_SETTINGS,

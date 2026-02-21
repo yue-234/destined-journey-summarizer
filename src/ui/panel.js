@@ -27,13 +27,16 @@ const getBlockTypeName = (type) => {
   }
 };
 
+const BUILTIN_BLOCK_IDS = ['jailbreak', 'summary_rules', 'summary_instruction', 'mega_jailbreak', 'mega_summary_rules', 'mega_summary_instruction'];
+
 const renderBlock = (block, index, total) => {
   const isPrompt = block.type === BLOCK_TYPES.PROMPT;
   const isBuiltin = block.type === BLOCK_TYPES.BUILTIN_GROUP;
+  const isChatMessages = block.type === BLOCK_TYPES.CHAT_MESSAGES;
   const hasRole = !isBuiltin;
   const hasContent = isPrompt;
-  const isCustom =
-    isPrompt && !['jailbreak', 'summary_rules', 'summary_instruction'].includes(block.id);
+  const isCustom = isPrompt && !BUILTIN_BLOCK_IDS.includes(block.id);
+  const hasLeadText = isChatMessages;
   return `
     <div class="sa-block ${block.enabled ? '' : 'sa-block-disabled'}" data-block-id="${escapeHtml(block.id)}" draggable="true">
       <div class="sa-block-header collapsed" data-block-toggle="${escapeHtml(block.id)}">
@@ -59,26 +62,33 @@ const renderBlock = (block, index, total) => {
             style="min-height:${block.content && block.content.length > 500 ? '200px' : '80px'}"
           >${escapeHtml(block.content || '')}</textarea>
         ` : ''}
+        ${hasLeadText ? `
+          <div class="sa-block-role-row" style="margin-top:6px">
+            <span class="sa-block-role-label">引导语</span>
+            <input class="sa-input" data-block-lead-text="${escapeHtml(block.id)}" type="text"
+              value="${escapeHtml(block.leadText || '')}" placeholder="发送内容前的引导文字">
+          </div>
+          <div class="sa-hint">运行时自动填充内容。引导语会添加在内容前面。可设置发送时的 role。</div>
+        ` : ''}
         ${isBuiltin ? `
           <div class="sa-hint">包含：world_info_before, persona_description, char_description, char_personality, scenario, world_info_after, dialogue_examples</div>
         ` : ''}
         ${block.type === BLOCK_TYPES.OLD_SUMMARY ? `
           <div class="sa-hint">运行时自动填充已有总结内容。可设置发送时的 role。</div>
         ` : ''}
-        ${block.type === BLOCK_TYPES.CHAT_MESSAGES ? `
-          <div class="sa-hint">运行时自动填充待总结的聊天消息。可设置发送时的 role。</div>
-        ` : ''}
       </div>
     </div>
   `;
 };
 
-const renderBlocks = (blocks) => {
+const renderBlocks = (blocks, containerId = 'sa-blocks-container') => {
+  const resetAction = containerId === 'sa-mega-blocks-container' ? 'data-action-reset-mega-blocks' : 'data-action-reset-blocks';
+  const addAction = containerId === 'sa-mega-blocks-container' ? 'data-action-add-mega-block' : 'data-action-add-block';
   return (
     blocks.map((b, i) => renderBlock(b, i, blocks.length)).join('') +
     `<div class="sa-add-block-row">
-      <button class="sa-add-block-btn" data-action-add-block>＋ 添加自定义提示词板块</button>
-      <button class="sa-btn sa-btn-sm sa-btn-danger" data-action-reset-blocks>重置提示词</button>
+      <button class="sa-add-block-btn" ${addAction}>＋ 添加自定义提示词板块</button>
+      <button class="sa-btn sa-btn-sm sa-btn-danger" ${resetAction}>重置提示词</button>
     </div>`
   );
 };
@@ -197,10 +207,17 @@ const buildPanelHtml = (settings) => `
     </div>
     <div class="sa-tab-pane" data-pane="prompts">
       <div class="sa-section">
-        <div class="sa-section-header"><span>📝 提示词板块（可排序）</span></div>
+        <div class="sa-section-header"><span>📝 总结提示词板块（可排序）</span></div>
         <div class="sa-section-body">
             <div class="sa-hint" style="margin-bottom:10px">拖拽板块调整顺序。板块按从上到下的顺序发送给AI。</div>
-            <div id="sa-blocks-container" class="sa-blocks-container">${renderBlocks(settings.promptBlocks || [])}</div>
+            <div id="sa-blocks-container" class="sa-blocks-container">${renderBlocks(settings.promptBlocks || [], 'sa-blocks-container')}</div>
+        </div>
+      </div>
+      <div class="sa-section" style="margin-top:16px">
+        <div class="sa-section-header"><span>🔷 大总结提示词板块（可排序）</span></div>
+        <div class="sa-section-body">
+            <div class="sa-hint" style="margin-bottom:10px">拖拽板块调整顺序。大总结时按从上到下的顺序发送给AI。</div>
+            <div id="sa-mega-blocks-container" class="sa-blocks-container">${renderBlocks(settings.megaPromptBlocks || [], 'sa-mega-blocks-container')}</div>
         </div>
       </div>
     </div>

@@ -59,10 +59,11 @@ const callSummaryApi = errorCatched(
         }
         case BLOCK_TYPES.CHAT_MESSAGES: {
           if (mergedChatText && mergedChatText.trim()) {
+            const lead = block.leadText || '以下是本次需要总结的聊天内容：';
             orderedPrompts.push({
               role: block.role || 'user',
               content: wrapContent(
-                `以下是本次需要总结的聊天内容：\n\n${mergedChatText}`
+                `${lead}\n\n${mergedChatText}`
               ),
             });
           }
@@ -170,10 +171,11 @@ const callMegaSummaryApi = errorCatched(
         }
         case BLOCK_TYPES.CHAT_MESSAGES: {
           if (mergedSummaryText && mergedSummaryText.trim()) {
+            const lead = block.leadText || '以下是需要进行大总结的总结条目内容：';
             orderedPrompts.push({
               role: block.role || 'user',
               content: wrapContent(
-                `以下是需要进行大总结的总结条目内容：\n\n${mergedSummaryText}`
+                `${lead}\n\n${mergedSummaryText}`
               ),
             });
           }
