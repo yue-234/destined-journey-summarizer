@@ -268,6 +268,7 @@ const DEFAULT_SETTINGS = {
   maxTokens: 32000,
   includeTags: ['tp', 'gametxt', 'summary'],
   excludeTags: ['think'],
+  excludeHtmlComments: true,
   triggerFloorCount: 50,
   keepFloorCount: 10,
   includeOldSummary: true,

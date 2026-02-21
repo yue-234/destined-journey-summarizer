@@ -83,10 +83,18 @@ const excludeTagContent = (text, tagNames) => {
   return result.trim();
 };
 
-const processMessagesByTags = (messages, includeTags, excludeTags) => {
+const removeHtmlComments = (text) => {
+  if (!text) return text || '';
+  return text.replace(/<!--[\s\S]*?-->/g, '').trim();
+};
+
+const processMessagesByTags = (messages, includeTags, excludeTags, excludeHtmlComments) => {
   const results = [];
   for (const msg of messages) {
     let content = msg.message || '';
+    if (excludeHtmlComments) {
+      content = removeHtmlComments(content);
+    }
     if (excludeTags && excludeTags.length > 0) {
       content = excludeTagContent(content, excludeTags);
     }

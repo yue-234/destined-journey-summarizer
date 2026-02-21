@@ -187,6 +187,10 @@ const buildPanelHtml = (settings) => `
             <div class="sa-hint">只提取这些标签内的内容发给AI。多个标签用逗号分隔。留空则发送完整消息。</div>
             <div class="sa-row" style="margin-top:12px"><span class="sa-label">排除标签</span><input class="sa-input" id="sa-exclude-tags" type="text" placeholder="think, hidden" value="${escapeHtml(tagsToString(settings.excludeTags))}"></div>
             <div class="sa-hint">排除这些标签内的内容。在提取之前执行。</div>
+            <div class="sa-row" style="margin-top:12px">
+              <label><input type="checkbox" id="sa-exclude-html-comments" ${settings.excludeHtmlComments !== false ? 'checked' : ''}> 隐藏HTML注释 (&lt;!-- ... --&gt;)</label>
+            </div>
+            <div class="sa-hint">隐藏消息中被 &lt;!-- 和 --&gt; 包裹的内容。</div>
           </div>
           <div class="sa-settings-pane" data-sub-pane="visibility">
             <div class="sa-row sa-row-pair">

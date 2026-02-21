@@ -121,6 +121,7 @@ const collectSettingsFromPanel = (overlay) => {
     maxTokens: val('sa-max-tokens') || 'same_as_preset',
     includeTags: parseTagString(val('sa-include-tags')),
     excludeTags: parseTagString(val('sa-exclude-tags')),
+    excludeHtmlComments: checked('sa-exclude-html-comments'),
     promptBlocks: collectBlocksFromPanel(overlay, '#sa-blocks-container'),
     megaPromptBlocks: collectBlocksFromPanel(overlay, '#sa-mega-blocks-container'),
   };

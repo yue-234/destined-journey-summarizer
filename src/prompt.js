@@ -7,7 +7,7 @@
 const buildSummaryPromptParams = errorCatched(async (startFloor, endFloor) => {
   const settings = getSettings();
   const rawMsgs = await getRawMessages(startFloor, endFloor);
-  const processed = processMessagesByTags(rawMsgs, settings.includeTags, settings.excludeTags);
+  const processed = processMessagesByTags(rawMsgs, settings.includeTags, settings.excludeTags, settings.excludeHtmlComments);
   if (processed.length === 0) {
     throw new Error(`楼层 ${startFloor}-${endFloor} 中没有提取到任何有效内容`);
   }
@@ -42,7 +42,7 @@ const buildRegeneratePromptParams = errorCatched(async (entryName) => {
   const lastId = getLastMessageId();
   const actualEnd = Math.min(end, lastId);
   const rawMsgs = await getRawMessages(start, actualEnd);
-  const processed = processMessagesByTags(rawMsgs, settings.includeTags, settings.excludeTags);
+  const processed = processMessagesByTags(rawMsgs, settings.includeTags, settings.excludeTags, settings.excludeHtmlComments);
   if (processed.length === 0) {
     throw new Error(`楼层 ${start}-${actualEnd} 中没有提取到任何有效内容`);
   }
