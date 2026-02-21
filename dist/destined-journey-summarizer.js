@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T14:41:06.030Z
+ * 构建时间: 2026-02-21T14:49:37.520Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -3332,11 +3332,33 @@ const refreshEntryList = async (panel, enableSelection = false) => {
   try {
     const allEntries = await getAllSummaryEntriesForDisplay();
     const megaMap = await getMegaSummaryMap();
+    
+    // 获取实际存在的大总结条目名称，用于验证 mapping 的有效性
+    const megaEntries = await getAllMegaSummaryEntriesForDisplay();
+    const existingMegaNames = new Set(megaEntries.map(e => e.name));
+    
     const usedInMega = new Set();
-    for (const summaryNames of Object.values(megaMap)) {
+    let needCleanup = false;
+    for (const [megaName, summaryNames] of Object.entries(megaMap)) {
+      if (!existingMegaNames.has(megaName)) {
+        // 大总结条目已不存在，标记需要清理该 mapping
+        needCleanup = true;
+        continue;
+      }
       if (Array.isArray(summaryNames)) {
         summaryNames.forEach(name => usedInMega.add(name));
       }
+    }
+    
+    // 异步清理孤立的 mapping（不阻塞 UI）
+    if (needCleanup) {
+      (async () => {
+        for (const megaName of Object.keys(megaMap)) {
+          if (!existingMegaNames.has(megaName)) {
+            await deleteMegaSummaryMapping(megaName);
+          }
+        }
+      })();
     }
     
     // 找到第一个未被大总结的有效条目的索引
