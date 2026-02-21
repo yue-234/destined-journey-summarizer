@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T13:39:13.452Z
+ * 构建时间: 2026-02-21T13:08:46.393Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -2514,6 +2514,15 @@ input[type="checkbox"]:checked::after {
 .sa-mega-entry-item { background: rgba(0,212,170,0.05); border-left: 3px solid var(--sa-teal); }
 .sa-mega-entry-item:hover { background: rgba(0,212,170,0.10); }
 
+.sa-entry-unavailable { opacity: 0.5; }
+.sa-entry-badge { font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-right: 6px; white-space: nowrap; flex-shrink: 0; }
+.sa-entry-badge-mega { background: rgba(0,212,170,0.15); color: #00d4aa; border: 1px solid rgba(0,212,170,0.3); }
+.sa-entry-badge-disabled { background: rgba(255,255,255,0.06); color: var(--sa-text3); border: 1px solid rgba(255,255,255,0.1); }
+
+.sa-selection-controls { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--sa-border2); background: rgba(108,99,255,0.04); }
+.sa-selection-count { font-size: 12px; color: var(--sa-text2); }
+.sa-selection-btns { display: flex; gap: 6px; }
+
 .sa-blocks-container { display: flex; flex-direction: column; gap: 8px; }
 .sa-block-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--sa-surface); border-radius: var(--sa-radius-sm); cursor: pointer; user-select: none; }
 .sa-block-drag { cursor: grab; color: var(--sa-text3); }
@@ -2551,25 +2560,33 @@ input[type="checkbox"]:checked::after {
  * 依赖: utils.js, storage.js, worldbook.js, errorHandler.js
  */
 
-const renderEntryList = (entries) => {
+const renderEntryList = (entries, selectionMode = false) => {
   if (!entries || entries.length === 0) {
     return '<div class="sa-empty">暂无总结条目</div>';
   }
   return entries
     .map(
-      (e) => `
-    <div class="sa-entry-item ${e.selectable ? 'sa-entry-selectable' : ''}" data-entry-name="${escapeHtml(e.name)}">
+      (e) => {
+        const isMega = e.selectableReason === 'mega';
+        const statusBadge = selectionMode
+          ? (isMega ? '<span class="sa-entry-badge sa-entry-badge-mega" title="已被大总结包含">已大总结</span>' :
+             (e.selectable ? '' : (e.disabled ? '<span class="sa-entry-badge sa-entry-badge-disabled" title="条目已禁用">已禁用</span>' : '')))
+          : '';
+        return `
+    <div class="sa-entry-item ${e.selectable ? 'sa-entry-selectable' : ''} ${selectionMode && !e.selectable ? 'sa-entry-unavailable' : ''}" data-entry-name="${escapeHtml(e.name)}">
       ${e.selectable ? `<input type="checkbox" class="sa-entry-checkbox" data-entry-name="${escapeHtml(e.name)}">` : ''}
       <span class="sa-entry-name ${e.disabled ? 'sa-entry-disabled' : ''}" title="${escapeHtml(e.name)}">
         ${escapeHtml(e.name)}
       </span>
+      ${statusBadge}
       <div class="sa-entry-actions">
         <button class="sa-btn sa-btn-sm" data-action="view-edit" data-name="${escapeHtml(e.name)}">查看/编辑</button>
         <button class="sa-btn sa-btn-sm" data-action="regenerate" data-name="${escapeHtml(e.name)}">重新生成</button>
         <button class="sa-btn sa-btn-sm sa-btn-danger" data-action="delete" data-name="${escapeHtml(e.name)}">删除</button>
       </div>
     </div>
-  `
+  `;
+      }
     )
     .join('');
 };
@@ -3336,36 +3353,136 @@ const refreshEntryList = async (panel, enableSelection = false) => {
       }
     }
     
+    // 找到第一个未被大总结的有效条目的索引
+    let firstUnmegaIdx = -1;
+    for (let i = 0; i < allEntries.length; i++) {
+      const e = allEntries[i];
+      const parsed = parseSummaryEntryName(e.name);
+      if (parsed && !e.disabled && !usedInMega.has(e.name)) {
+        firstUnmegaIdx = i;
+        break;
+      }
+    }
+    
     // 标记哪些条目可以被选择用于大总结
+    // 规则：从第一个未被大总结的条目开始，所有连续的未被大总结条目都可选
     const entries = allEntries.map((e, idx) => {
       const parsed = parseSummaryEntryName(e.name);
-      if (!parsed || e.disabled || usedInMega.has(e.name)) {
-        return { ...e, selectable: false };
+      const isUsedInMega = usedInMega.has(e.name);
+      
+      if (!parsed || e.disabled || isUsedInMega) {
+        return { ...e, selectable: false, selectableReason: isUsedInMega ? 'mega' : '' };
       }
       
-      // 检查前面是否还有未大总结的条目
-      let canSelect = true;
-      for (let i = 0; i < idx; i++) {
-        const prevEntry = allEntries[i];
-        const prevParsed = parseSummaryEntryName(prevEntry.name);
-        if (prevParsed && !prevEntry.disabled && !usedInMega.has(prevEntry.name)) {
-          canSelect = false;
-          break;
+      // 只有从第一个未被大总结的条目开始的连续条目才可选
+      let canSelect = false;
+      if (firstUnmegaIdx >= 0 && idx >= firstUnmegaIdx) {
+        // 检查从 firstUnmegaIdx 到 idx 之间是否所有条目都是可选的（没有被大总结的中断）
+        canSelect = true;
+        for (let i = firstUnmegaIdx; i < idx; i++) {
+          const midEntry = allEntries[i];
+          const midParsed = parseSummaryEntryName(midEntry.name);
+          if (!midParsed || midEntry.disabled) {
+            // 跳过非总结条目或已禁用的
+            continue;
+          }
+          if (usedInMega.has(midEntry.name)) {
+            // 中间有已被大总结的条目，断开了连续性
+            canSelect = false;
+            break;
+          }
         }
       }
       
       return { ...e, selectable: enableSelection && canSelect };
     });
     
-    el.innerHTML = renderEntryList(entries);
+    el.innerHTML = renderEntryList(entries, enableSelection);
     el.querySelectorAll('button[data-action]').forEach((btn) => {
       btn.addEventListener('click', () => {
         handleEntryAction(panel, btn.dataset.action, btn.dataset.name);
       });
     });
+    
+    // 在选择模式下，绑定 checkbox 联动逻辑
+    if (enableSelection) {
+      bindMegaSelectionLogic(el);
+    }
   } catch (err) {
     el.innerHTML = `<div class="sa-empty">加载条目列表失败: ${err.message}</div>`;
   }
+};
+
+// 绑定大总结选择的联动逻辑：确保选中的条目从头开始连续
+// 规则：勾选第N个时，自动勾选0~N-1；取消第N个时，自动取消N+1以后的
+const bindMegaSelectionLogic = (container) => {
+  const checkboxes = Array.from(container.querySelectorAll('.sa-entry-checkbox'));
+  if (checkboxes.length === 0) return;
+  
+  const onCheckboxChange = (e) => {
+    const changedCb = e.target;
+    const changedIdx = checkboxes.indexOf(changedCb);
+    if (changedIdx < 0) return;
+    
+    if (changedCb.checked) {
+      // 勾选第N个：自动勾选前面所有（0 ~ N-1）
+      for (let i = 0; i < changedIdx; i++) {
+        checkboxes[i].checked = true;
+      }
+    } else {
+      // 取消第N个：自动取消后面所有（N+1 ~ end）
+      for (let i = changedIdx + 1; i < checkboxes.length; i++) {
+        checkboxes[i].checked = false;
+      }
+    }
+    
+    updateSelectionCount(container);
+  };
+  
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', onCheckboxChange);
+  });
+  
+  // 添加全选/全不选按钮
+  addSelectionControls(container, checkboxes);
+};
+
+// 更新选中计数显示
+const updateSelectionCount = (container) => {
+  const checkboxes = container.querySelectorAll('.sa-entry-checkbox');
+  const checkedCount = container.querySelectorAll('.sa-entry-checkbox:checked').length;
+  const countEl = container.querySelector('.sa-selection-count');
+  if (countEl) {
+    countEl.textContent = checkedCount > 0
+      ? `已选择 ${checkedCount}/${checkboxes.length} 个条目`
+      : `共 ${checkboxes.length} 个可选条目，请从头开始勾选`;
+  }
+};
+
+// 添加选择辅助控件
+const addSelectionControls = (container, checkboxes) => {
+  // 检查是否已经存在
+  if (container.querySelector('.sa-selection-controls')) return;
+  
+  const controls = document.createElement('div');
+  controls.className = 'sa-selection-controls';
+  controls.innerHTML = `
+    <span class="sa-selection-count">共 ${checkboxes.length} 个可选条目，请从头开始勾选</span>
+    <div class="sa-selection-btns">
+      <button class="sa-btn sa-btn-sm sa-select-all">全选</button>
+      <button class="sa-btn sa-btn-sm sa-select-none">全不选</button>
+    </div>
+  `;
+  container.insertBefore(controls, container.firstChild);
+  
+  controls.querySelector('.sa-select-all').addEventListener('click', () => {
+    checkboxes.forEach(cb => { cb.checked = true; });
+    updateSelectionCount(container);
+  });
+  controls.querySelector('.sa-select-none').addEventListener('click', () => {
+    checkboxes.forEach(cb => { cb.checked = false; });
+    updateSelectionCount(container);
+  });
 };
 
 const handleMegaEntryAction = async (overlay, action, entryName) => {
@@ -3830,8 +3947,8 @@ const bindPanelEvents = (overlay, initialSettings) => {
       
       confirmBtn.addEventListener('click', async () => {
         const checkboxes = overlay.querySelectorAll('.sa-entry-checkbox:checked');
-        if (checkboxes.length === 0) {
-          toastr.warning('请至少选择一个总结条目');
+        if (checkboxes.length < 2) {
+          toastr.warning('请至少选择 2 个总结条目进行大总结');
           return;
         }
         

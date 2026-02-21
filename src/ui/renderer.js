@@ -4,25 +4,33 @@
  * 依赖: utils.js, storage.js, worldbook.js, errorHandler.js
  */
 
-const renderEntryList = (entries) => {
+const renderEntryList = (entries, selectionMode = false) => {
   if (!entries || entries.length === 0) {
     return '<div class="sa-empty">暂无总结条目</div>';
   }
   return entries
     .map(
-      (e) => `
-    <div class="sa-entry-item ${e.selectable ? 'sa-entry-selectable' : ''}" data-entry-name="${escapeHtml(e.name)}">
+      (e) => {
+        const isMega = e.selectableReason === 'mega';
+        const statusBadge = selectionMode
+          ? (isMega ? '<span class="sa-entry-badge sa-entry-badge-mega" title="已被大总结包含">已大总结</span>' :
+             (e.selectable ? '' : (e.disabled ? '<span class="sa-entry-badge sa-entry-badge-disabled" title="条目已禁用">已禁用</span>' : '')))
+          : '';
+        return `
+    <div class="sa-entry-item ${e.selectable ? 'sa-entry-selectable' : ''} ${selectionMode && !e.selectable ? 'sa-entry-unavailable' : ''}" data-entry-name="${escapeHtml(e.name)}">
       ${e.selectable ? `<input type="checkbox" class="sa-entry-checkbox" data-entry-name="${escapeHtml(e.name)}">` : ''}
       <span class="sa-entry-name ${e.disabled ? 'sa-entry-disabled' : ''}" title="${escapeHtml(e.name)}">
         ${escapeHtml(e.name)}
       </span>
+      ${statusBadge}
       <div class="sa-entry-actions">
         <button class="sa-btn sa-btn-sm" data-action="view-edit" data-name="${escapeHtml(e.name)}">查看/编辑</button>
         <button class="sa-btn sa-btn-sm" data-action="regenerate" data-name="${escapeHtml(e.name)}">重新生成</button>
         <button class="sa-btn sa-btn-sm sa-btn-danger" data-action="delete" data-name="${escapeHtml(e.name)}">删除</button>
       </div>
     </div>
-  `
+  `;
+      }
     )
     .join('');
 };

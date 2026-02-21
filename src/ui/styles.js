@@ -241,6 +241,15 @@ input[type="checkbox"]:checked::after {
 .sa-mega-entry-item { background: rgba(0,212,170,0.05); border-left: 3px solid var(--sa-teal); }
 .sa-mega-entry-item:hover { background: rgba(0,212,170,0.10); }
 
+.sa-entry-unavailable { opacity: 0.5; }
+.sa-entry-badge { font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-right: 6px; white-space: nowrap; flex-shrink: 0; }
+.sa-entry-badge-mega { background: rgba(0,212,170,0.15); color: #00d4aa; border: 1px solid rgba(0,212,170,0.3); }
+.sa-entry-badge-disabled { background: rgba(255,255,255,0.06); color: var(--sa-text3); border: 1px solid rgba(255,255,255,0.1); }
+
+.sa-selection-controls { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--sa-border2); background: rgba(108,99,255,0.04); }
+.sa-selection-count { font-size: 12px; color: var(--sa-text2); }
+.sa-selection-btns { display: flex; gap: 6px; }
+
 .sa-blocks-container { display: flex; flex-direction: column; gap: 8px; }
 .sa-block-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--sa-surface); border-radius: var(--sa-radius-sm); cursor: pointer; user-select: none; }
 .sa-block-drag { cursor: grab; color: var(--sa-text3); }
