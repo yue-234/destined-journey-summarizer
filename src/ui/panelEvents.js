@@ -601,12 +601,11 @@ const handleMegaEntryAction = async (overlay, action, entryName) => {
     case 'delete-mega': {
       const cfm = await SillyTavern.callGenericPopup(
         `确定要删除大总结条目「${escapeHtml(entryName)}」吗？\n\n` +
-          `删除后将无法恢复，但原始总结条目仍会保留（处于禁用状态）。`,
+          `删除后将恢复该大总结包含的原始总结条目。`,
         SillyTavern.POPUP_TYPE.CONFIRM
       );
       if (cfm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
-      await deleteMegaSummaryEntry(entryName);
-      toastr.success(`已删除大总结条目 "${entryName}"`);
+      await restoreMegaSummaryToSummaries(entryName);
       await refreshMegaEntryList(overlay);
       await refreshEntryList(overlay);
       await refreshStatus(overlay);
