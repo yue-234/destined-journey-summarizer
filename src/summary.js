@@ -160,14 +160,9 @@ const executeSummary = errorCatched(
           aiMessage,
           { rows: 12, wide: true, okButton: '确定保存', cancelButton: '取消' }
         );
-        if (result === SillyTavern.POPUP_RESULT.CANCELLED) {
+        if (typeof result !== 'string') {
           showSummaryHintFor('已取消保存本次总结。', 'info', 2200);
           toastr.info('操作已取消。');
-          return;
-        }
-        if (typeof result !== 'string') {
-          showSummaryHintFor('总结未保存：输入内容无效。', 'error', 3200);
-          toastr.error('保存失败：输入内容无效。');
           return;
         }
         contentToSave = result;
@@ -226,16 +221,14 @@ const regenerateAndReplaceEntry = errorCatched(async (entryName) => {
       aiMessage,
       { rows: 12, wide: true, okButton: '确定替换', cancelButton: '取消' }
     );
-    if (result === SillyTavern.POPUP_RESULT.CANCELLED) {
+    if (typeof result !== 'string') {
       showSummaryHintFor('已取消替换该条目。', 'info', 2200);
       toastr.info('操作已取消。');
       return;
     }
-    if (typeof result === 'string') {
-      await upsertSummaryEntryByName(entryName, result);
-      showSummaryHintFor(`条目已重新生成：${entryName}`, 'success', 3200);
-      toastr.success(`已重新生成并替换：${entryName}`);
-    }
+    await upsertSummaryEntryByName(entryName, result);
+    showSummaryHintFor(`条目已重新生成：${entryName}`, 'success', 3200);
+    toastr.success(`已重新生成并替换：${entryName}`);
   } catch (error) {
     console.error('重新生成失败:', error);
     showSummaryHintFor(`重新生成失败：${error.message}`, 'error', 4200);
@@ -287,14 +280,9 @@ const executeMegaSummary = errorCatched(
           aiMessage,
           { rows: 12, wide: true, okButton: '确定保存', cancelButton: '取消' }
         );
-        if (result === SillyTavern.POPUP_RESULT.CANCELLED) {
+        if (typeof result !== 'string') {
           showSummaryHintFor('已取消保存本次大总结。', 'info', 2200);
           toastr.info('操作已取消。');
-          return;
-        }
-        if (typeof result !== 'string') {
-          showSummaryHintFor('大总结未保存：输入内容无效。', 'error', 3200);
-          toastr.error('保存失败：输入内容无效。');
           return;
         }
         contentToSave = result;
@@ -368,16 +356,14 @@ const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
       aiMessage,
       { rows: 12, wide: true, okButton: '确定替换', cancelButton: '取消' }
     );
-    if (result === SillyTavern.POPUP_RESULT.CANCELLED) {
+    if (typeof result !== 'string') {
       showSummaryHintFor('已取消替换该大总结条目。', 'info', 2200);
       toastr.info('操作已取消。');
       return;
     }
-    if (typeof result === 'string') {
-      await upsertMegaSummaryEntry(entryName, result, summaryNames);
-      showSummaryHintFor(`大总结条目已重新生成：${entryName}`, 'success', 3200);
-      toastr.success(`已重新生成并替换：${entryName}`);
-    }
+    await upsertMegaSummaryEntry(entryName, result, summaryNames);
+    showSummaryHintFor(`大总结条目已重新生成：${entryName}`, 'success', 3200);
+    toastr.success(`已重新生成并替换：${entryName}`);
   } catch (error) {
     console.error('重新生成大总结失败:', error);
     showSummaryHintFor(`重新生成失败：${error.message}`, 'error', 4200);
