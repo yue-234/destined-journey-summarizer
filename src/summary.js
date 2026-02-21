@@ -263,3 +263,124 @@ const autoTriggerSummary = errorCatched(async () => {
     requireReview: false,
   });
 });
+
+// ---- 大总结流程 ----
+
+const executeMegaSummary = errorCatched(
+  async (summaryNames, entryName, { requireReview = false } = {}) => {
+    showSummaryHint(
+      `正在生成大总结，请稍候...\n总结条目数：${summaryNames.length}`
+    );
+    try {
+      const params = await buildMegaSummaryPromptParams(summaryNames);
+      const aiMessage = await callMegaSummaryApi(params);
+      if (!aiMessage) {
+        showSummaryHintFor('大总结失败：AI没有返回任何内容。', 'error', 3800);
+        toastr.error('AI没有返回任何内容。');
+        return;
+      }
+      let contentToSave = aiMessage;
+      if (requireReview) {
+        const result = await SillyTavern.callGenericPopup(
+          `AI生成的大总结（将保存为：${escapeHtml(entryName)}），可在下方编辑：`,
+          SillyTavern.POPUP_TYPE.INPUT,
+          aiMessage,
+          { rows: 12, wide: true, okButton: '确定保存', cancelButton: '取消' }
+        );
+        if (result === SillyTavern.POPUP_RESULT.CANCELLED) {
+          showSummaryHintFor('已取消保存本次大总结。', 'info', 2200);
+          toastr.info('操作已取消。');
+          return;
+        }
+        if (typeof result !== 'string') {
+          showSummaryHintFor('大总结未保存：输入内容无效。', 'error', 3200);
+          toastr.error('保存失败：输入内容无效。');
+          return;
+        }
+        contentToSave = result;
+      }
+      
+      // 保存大总结条目
+      await upsertMegaSummaryEntry(entryName, contentToSave, summaryNames);
+      
+      // 禁用已被大总结的总结条目
+      const wbName = getActiveWorldbookName();
+      if (wbName) {
+        await updateWorldbookWith(wbName, (wb) => {
+          const arr = normalizeWorldbookEntries(wb);
+          for (const summaryName of summaryNames) {
+            const entry = arr.find((e) => e && e.name === summaryName);
+            if (entry) {
+              entry.enabled = false;
+              entry.disable = true;
+            }
+          }
+          return Array.isArray(wb) ? arr : { ...wb, entries: arr };
+        });
+      }
+      
+      showSummaryHintFor(`大总结已生成：${entryName}`, 'success', 3200);
+      toastr.success(`大总结已保存：${entryName}`);
+    } catch (error) {
+      console.error('大总结过程中出错:', error);
+      showSummaryHintFor(`大总结失败：${error.message}`, 'error', 4200);
+      toastr.error(`大总结失败: ${error.message}`);
+    }
+  }
+);
+
+const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
+  const parsed = parseMegaSummaryEntryName(entryName);
+  if (!parsed) {
+    toastr.error('条目名不符合"大总结x-y楼"格式。');
+    return;
+  }
+  
+  const summaryNames = await getMegaSummaryMapping(entryName);
+  if (!summaryNames || summaryNames.length === 0) {
+    toastr.error('未找到该大总结的原始总结条目映射。');
+    return;
+  }
+  
+  const confirm = await SillyTavern.callGenericPopup(
+    `将对大总结条目「${escapeHtml(entryName)}」执行重新生成。\n\n` +
+      `流程：\n` +
+      `1) 提取原始总结条目的内容（共${summaryNames.length}个）\n` +
+      `2) 发送该大总结之前的大总结作为上下文（不含该大总结及之后的）\n` +
+      `3) 调用API生成大总结并替换该条目内容\n\n` +
+      `继续吗？`,
+    SillyTavern.POPUP_TYPE.CONFIRM
+  );
+  if (confirm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
+  
+  showSummaryHint(`正在重新生成大总结条目，请稍候...\n目标条目：${entryName}`);
+  try {
+    const params = await buildRegenerateMegaSummaryPromptParams(entryName);
+    const aiMessage = await callMegaSummaryApi(params);
+    if (!aiMessage) {
+      showSummaryHintFor('重新生成失败：AI没有返回任何内容。', 'error', 3800);
+      toastr.error('AI没有返回任何内容。');
+      return;
+    }
+    const result = await SillyTavern.callGenericPopup(
+      `重新生成的大总结（${escapeHtml(entryName)}），可在下方编辑：`,
+      SillyTavern.POPUP_TYPE.INPUT,
+      aiMessage,
+      { rows: 12, wide: true, okButton: '确定替换', cancelButton: '取消' }
+    );
+    if (result === SillyTavern.POPUP_RESULT.CANCELLED) {
+      showSummaryHintFor('已取消替换该大总结条目。', 'info', 2200);
+      toastr.info('操作已取消。');
+      return;
+    }
+    if (typeof result === 'string') {
+      await upsertMegaSummaryEntry(entryName, result, summaryNames);
+      showSummaryHintFor(`大总结条目已重新生成：${entryName}`, 'success', 3200);
+      toastr.success(`已重新生成并替换：${entryName}`);
+    }
+  } catch (error) {
+    console.error('重新生成大总结失败:', error);
+    showSummaryHintFor(`重新生成失败：${error.message}`, 'error', 4200);
+    toastr.error(`重新生成失败: ${error.message}`);
+  }
+});

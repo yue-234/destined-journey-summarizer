@@ -68,3 +68,63 @@ const buildRegeneratePromptParams = errorCatched(async (entryName) => {
     scanText,
   };
 });
+
+const buildMegaSummaryPromptParams = errorCatched(async (summaryNames, entryName = null) => {
+  const settings = getSettings();
+  
+  // 获取所有要大总结的总结条目内容
+  const entries = await getWorldbookEntriesSafe();
+  const summaryContents = [];
+  for (const name of summaryNames) {
+    const entry = entries.find((e) => e && e.name === name);
+    if (entry && entry.content) {
+      summaryContents.push(`[${name}]\n${entry.content}`);
+    }
+  }
+  
+  if (summaryContents.length === 0) {
+    throw new Error('没有找到任何有效的总结条目内容');
+  }
+  
+  const mergedSummaryText = summaryContents.join('\n\n');
+  
+  // 获取已有的大总结内容（如果是重新生成）
+  let oldMegaSummaryContent = '';
+  if (entryName) {
+    const beforeMegaSummaries = await getMegaSummaryContentsBefore(entryName);
+    if (beforeMegaSummaries.length > 0) {
+      oldMegaSummaryContent = beforeMegaSummaries
+        .map((s) => `[${s.name}]\n${s.content}`)
+        .join('\n\n');
+    }
+  } else {
+    // 如果不是重新生成，获取所有已有的大总结
+    const allMegaSummaries = await getAllMegaSummaryEntriesForDisplay();
+    const megaContents = [];
+    for (const mega of allMegaSummaries) {
+      if (mega.disabled) continue;
+      const entry = entries.find((e) => e && e.name === mega.name);
+      if (entry && entry.content) {
+        megaContents.push(`[${mega.name}]\n${entry.content}`);
+      }
+    }
+    if (megaContents.length > 0) {
+      oldMegaSummaryContent = megaContents.join('\n\n');
+    }
+  }
+  
+  return {
+    promptBlocks: DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS || [],
+    oldMegaSummaryContent,
+    mergedSummaryText,
+  };
+});
+
+const buildRegenerateMegaSummaryPromptParams = errorCatched(async (entryName) => {
+  const summaryNames = await getMegaSummaryMapping(entryName);
+  if (!summaryNames || summaryNames.length === 0) {
+    throw new Error('未找到该大总结的原始总结条目映射');
+  }
+  
+  return await buildMegaSummaryPromptParams(summaryNames, entryName);
+});

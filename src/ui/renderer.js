@@ -11,7 +11,8 @@ const renderEntryList = (entries) => {
   return entries
     .map(
       (e) => `
-    <div class="sa-entry-item">
+    <div class="sa-entry-item ${e.selectable ? 'sa-entry-selectable' : ''}" data-entry-name="${escapeHtml(e.name)}">
+      ${e.selectable ? `<input type="checkbox" class="sa-entry-checkbox" data-entry-name="${escapeHtml(e.name)}">` : ''}
       <span class="sa-entry-name ${e.disabled ? 'sa-entry-disabled' : ''}" title="${escapeHtml(e.name)}">
         ${escapeHtml(e.name)}
       </span>
@@ -19,6 +20,29 @@ const renderEntryList = (entries) => {
         <button class="sa-btn sa-btn-sm" data-action="view-edit" data-name="${escapeHtml(e.name)}">查看/编辑</button>
         <button class="sa-btn sa-btn-sm" data-action="regenerate" data-name="${escapeHtml(e.name)}">重新生成</button>
         <button class="sa-btn sa-btn-sm sa-btn-danger" data-action="delete" data-name="${escapeHtml(e.name)}">删除</button>
+      </div>
+    </div>
+  `
+    )
+    .join('');
+};
+
+const renderMegaEntryList = (entries) => {
+  if (!entries || entries.length === 0) {
+    return '<div class="sa-empty">暂无大总结条目</div>';
+  }
+  return entries
+    .map(
+      (e) => `
+    <div class="sa-entry-item sa-mega-entry-item">
+      <span class="sa-entry-name ${e.disabled ? 'sa-entry-disabled' : ''}" title="${escapeHtml(e.name)}">
+        🔷 ${escapeHtml(e.name)}
+      </span>
+      <div class="sa-entry-actions">
+        <button class="sa-btn sa-btn-sm" data-action="view-edit-mega" data-name="${escapeHtml(e.name)}">查看/编辑</button>
+        <button class="sa-btn sa-btn-sm" data-action="regenerate-mega" data-name="${escapeHtml(e.name)}">重新生成</button>
+        <button class="sa-btn sa-btn-sm" data-action="restore-mega" data-name="${escapeHtml(e.name)}">回档</button>
+        <button class="sa-btn sa-btn-sm sa-btn-danger" data-action="delete-mega" data-name="${escapeHtml(e.name)}">删除</button>
       </div>
     </div>
   `

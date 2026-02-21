@@ -61,6 +61,7 @@ const showSettingsPopup = errorCatched(async () => {
   };
   bindPanelEvents(overlay, settings);
   await refreshEntryList(overlay);
+  await refreshMegaEntryList(overlay);
   await refreshStatus(overlay);
 });
 
@@ -415,11 +416,40 @@ const handleEntryAction = async (overlay, action, entryName) => {
   }
 };
 
-const refreshEntryList = async (panel) => {
+const refreshEntryList = async (panel, enableSelection = false) => {
   const el = panel.querySelector('#sa-entry-list');
   if (!el) return;
   try {
-    const entries = await getAllSummaryEntriesForDisplay();
+    const allEntries = await getAllSummaryEntriesForDisplay();
+    const megaMap = await getMegaSummaryMap();
+    const usedInMega = new Set();
+    for (const summaryNames of Object.values(megaMap)) {
+      if (Array.isArray(summaryNames)) {
+        summaryNames.forEach(name => usedInMega.add(name));
+      }
+    }
+    
+    // 标记哪些条目可以被选择用于大总结
+    const entries = allEntries.map((e, idx) => {
+      const parsed = parseSummaryEntryName(e.name);
+      if (!parsed || e.disabled || usedInMega.has(e.name)) {
+        return { ...e, selectable: false };
+      }
+      
+      // 检查前面是否还有未大总结的条目
+      let canSelect = true;
+      for (let i = 0; i < idx; i++) {
+        const prevEntry = allEntries[i];
+        const prevParsed = parseSummaryEntryName(prevEntry.name);
+        if (prevParsed && !prevEntry.disabled && !usedInMega.has(prevEntry.name)) {
+          canSelect = false;
+          break;
+        }
+      }
+      
+      return { ...e, selectable: enableSelection && canSelect };
+    });
+    
     el.innerHTML = renderEntryList(entries);
     el.querySelectorAll('button[data-action]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -428,6 +458,64 @@ const refreshEntryList = async (panel) => {
     });
   } catch (err) {
     el.innerHTML = `<div class="sa-empty">加载条目列表失败: ${err.message}</div>`;
+  }
+};
+
+const handleMegaEntryAction = async (overlay, action, entryName) => {
+  switch (action) {
+    case 'view-edit-mega':
+      await viewEditEntry(overlay, entryName);
+      break;
+    case 'regenerate-mega': {
+      await regenerateAndReplaceMegaEntry(entryName);
+      await refreshMegaEntryList(overlay);
+      await refreshEntryList(overlay);
+      await refreshStatus(overlay);
+      break;
+    }
+    case 'restore-mega': {
+      const cfm = await SillyTavern.callGenericPopup(
+        `确定要回档大总结条目「${escapeHtml(entryName)}」吗？\n\n` +
+          `回档后将删除该大总结条目，并恢复其包含的原始总结条目。`,
+        SillyTavern.POPUP_TYPE.CONFIRM
+      );
+      if (cfm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
+      await restoreMegaSummaryToSummaries(entryName);
+      await refreshMegaEntryList(overlay);
+      await refreshEntryList(overlay);
+      await refreshStatus(overlay);
+      break;
+    }
+    case 'delete-mega': {
+      const cfm = await SillyTavern.callGenericPopup(
+        `确定要删除大总结条目「${escapeHtml(entryName)}」吗？\n\n` +
+          `删除后将无法恢复，但原始总结条目仍会保留（处于禁用状态）。`,
+        SillyTavern.POPUP_TYPE.CONFIRM
+      );
+      if (cfm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
+      await deleteMegaSummaryEntry(entryName);
+      toastr.success(`已删除大总结条目 "${entryName}"`);
+      await refreshMegaEntryList(overlay);
+      await refreshEntryList(overlay);
+      await refreshStatus(overlay);
+      break;
+    }
+  }
+};
+
+const refreshMegaEntryList = async (panel) => {
+  const el = panel.querySelector('#sa-mega-entry-list');
+  if (!el) return;
+  try {
+    const entries = await getAllMegaSummaryEntriesForDisplay();
+    el.innerHTML = renderMegaEntryList(entries);
+    el.querySelectorAll('button[data-action]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        handleMegaEntryAction(panel, btn.dataset.action, btn.dataset.name);
+      });
+    });
+  } catch (err) {
+    el.innerHTML = `<div class="sa-empty">加载大总结列表失败: ${err.message}</div>`;
   }
 };
 
@@ -796,6 +884,93 @@ const bindPanelEvents = (overlay, initialSettings) => {
     overlay.remove();
     _panelEl = null;
     await startSummaryProcess();
+  });
+
+  // ---- 开始大总结 ----
+  overlay.querySelector('#sa-start-mega-summary')?.addEventListener('click', async () => {
+    // 切换选择模式
+    const btn = overlay.querySelector('#sa-start-mega-summary');
+    const isSelecting = btn.textContent.includes('取消');
+    
+    if (isSelecting) {
+      // 取消选择模式
+      btn.textContent = '开始大总结';
+      btn.classList.remove('sa-btn-danger');
+      btn.classList.add('sa-btn-primary');
+      await refreshEntryList(overlay, false);
+      const confirmBtn = overlay.querySelector('#sa-confirm-mega-summary');
+      if (confirmBtn) confirmBtn.remove();
+      return;
+    }
+    
+    // 进入选择模式
+    btn.textContent = '取消选择';
+    btn.classList.remove('sa-btn-primary');
+    btn.classList.add('sa-btn-danger');
+    await refreshEntryList(overlay, true);
+    
+    // 添加确认大总结按钮
+    const entryListContainer = overlay.querySelector('#sa-entry-list').parentElement;
+    let confirmBtn = entryListContainer.querySelector('#sa-confirm-mega-summary');
+    if (!confirmBtn) {
+      confirmBtn = document.createElement('button');
+      confirmBtn.id = 'sa-confirm-mega-summary';
+      confirmBtn.className = 'sa-btn sa-btn-primary';
+      confirmBtn.textContent = '确认大总结选中的条目';
+      confirmBtn.style.marginTop = '10px';
+      confirmBtn.style.width = '100%';
+      entryListContainer.appendChild(confirmBtn);
+      
+      confirmBtn.addEventListener('click', async () => {
+        const checkboxes = overlay.querySelectorAll('.sa-entry-checkbox:checked');
+        if (checkboxes.length === 0) {
+          toastr.warning('请至少选择一个总结条目');
+          return;
+        }
+        
+        const selectedNames = Array.from(checkboxes).map(cb => cb.dataset.entryName);
+        
+        // 验证选择的条目是否连续
+        const allEntries = await getAllSummaryEntriesForDisplay();
+        const selectedEntries = allEntries.filter(e => selectedNames.includes(e.name));
+        selectedEntries.sort((a, b) => {
+          const aStart = parseSummaryEntryName(a.name)?.start ?? 0;
+          const bStart = parseSummaryEntryName(b.name)?.start ?? 0;
+          return aStart - bStart;
+        });
+        
+        const firstParsed = parseSummaryEntryName(selectedEntries[0].name);
+        const lastParsed = parseSummaryEntryName(selectedEntries[selectedEntries.length - 1].name);
+        
+        if (!firstParsed || !lastParsed) {
+          toastr.error('选中的条目格式不正确');
+          return;
+        }
+        
+        const entryName = makeMegaSummaryEntryName(firstParsed.start, lastParsed.end);
+        
+        const confirm = await SillyTavern.callGenericPopup(
+          `将对以下总结条目进行大总结：\n\n` +
+            `选中条目数：${selectedNames.length}\n` +
+            `楼层范围：${firstParsed.start}-${lastParsed.end}\n` +
+            `大总结名称：${escapeHtml(entryName)}\n\n` +
+            `继续吗？`,
+          SillyTavern.POPUP_TYPE.CONFIRM
+        );
+        if (confirm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
+        
+        // 保存设置并关闭面板
+        if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+        const newSettings = collectSettingsFromPanel(overlay);
+        await updateSettings(newSettings);
+        overlay._cleanupResize?.();
+        overlay.remove();
+        _panelEl = null;
+        
+        // 执行大总结
+        await executeMegaSummary(selectedNames, entryName, { requireReview: true });
+      });
+    }
   });
 
   // ---- 绑定板块事件 ----

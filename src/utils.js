@@ -49,6 +49,22 @@ const parseSummaryEntryName = (name) => {
   return { start, end };
 };
 
+const makeMegaSummaryEntryName = (startOrder, endOrder) =>
+  `大总结${startOrder}-${endOrder}楼`;
+
+const parseMegaSummaryEntryName = (name) => {
+  const m = /^大总结(\d+)-(\d+)楼$/.exec(String(name || ''));
+  if (!m) return null;
+  const start = parseInt(m[1], 10);
+  const end = parseInt(m[2], 10);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return { start, end };
+};
+
+const isMegaSummaryEntry = (name) => {
+  return parseMegaSummaryEntryName(name) !== null;
+};
+
 const normalizeWorldbookEntries = (wb) => {
   if (Array.isArray(wb)) return wb;
   if (wb && Array.isArray(wb.entries)) return wb.entries;

@@ -131,6 +131,107 @@ const callSummaryApi = errorCatched(
   }
 );
 
+const callMegaSummaryApi = errorCatched(
+  async ({ promptBlocks, oldMegaSummaryContent, mergedSummaryText }) => {
+    const settings = getSettings();
+    const customApi = buildCustomApiConfig(settings);
+    const useNoTrans = settings.noTransTag !== false;
+    const NO_TRANS = '<|no-trans|>';
+    const wrapContent = (text) => (useNoTrans ? `${NO_TRANS}${text}` : text);
+
+    const orderedPrompts = [];
+    for (const block of promptBlocks) {
+      if (!block.enabled) continue;
+      switch (block.type) {
+        case BLOCK_TYPES.PROMPT: {
+          const content = replaceMacros(block.content || '');
+          if (content.trim()) {
+            orderedPrompts.push({
+              role: block.role || 'system',
+              content: wrapContent(content),
+            });
+          }
+          break;
+        }
+        case BLOCK_TYPES.BUILTIN_GROUP: {
+          orderedPrompts.push(...BUILTIN_PROMPTS);
+          break;
+        }
+        case BLOCK_TYPES.OLD_SUMMARY: {
+          if (oldMegaSummaryContent && oldMegaSummaryContent.trim()) {
+            orderedPrompts.push({
+              role: block.role || 'system',
+              content: wrapContent(
+                `<existing_mega_summary>\n${oldMegaSummaryContent}\n</existing_mega_summary>`
+              ),
+            });
+          }
+          break;
+        }
+        case BLOCK_TYPES.CHAT_MESSAGES: {
+          if (mergedSummaryText && mergedSummaryText.trim()) {
+            orderedPrompts.push({
+              role: block.role || 'user',
+              content: wrapContent(
+                `以下是需要进行大总结的总结条目内容：\n\n${mergedSummaryText}`
+              ),
+            });
+          }
+          break;
+        }
+      }
+    }
+
+    const config = { should_silence: true, ordered_prompts: orderedPrompts };
+    if (customApi) config.custom_api = customApi;
+
+    let generateRawFn =
+      (typeof generateRaw !== 'undefined' ? generateRaw : undefined) ||
+      (typeof window !== 'undefined'
+        ? window.generateRaw || (window.parent && window.parent.generateRaw)
+        : undefined);
+
+    if (generateRawFn) {
+      try {
+        const result = await generateRawFn(config);
+        return result ? String(result).trim() : '';
+      } catch (e) {
+        console.warn('Global generateRaw failed, trying fetch fallback', e);
+      }
+    }
+
+    console.log('Using fetch fallback for generateRaw');
+    const headers = { 'Content-Type': 'application/json' };
+    const stObj =
+      typeof SillyTavern !== 'undefined'
+        ? SillyTavern
+        : window.SillyTavern || (window.parent && window.parent.SillyTavern);
+    if (stObj && stObj.getRequestHeaders) {
+      const stHeaders = stObj.getRequestHeaders();
+      Object.assign(headers, stHeaders);
+    }
+
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(config),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Generation failed (${response.status}): ${errText}`);
+    }
+    const resultData = await response.json();
+    if (
+      resultData &&
+      Array.isArray(resultData.results) &&
+      resultData.results.length > 0
+    ) {
+      return String(resultData.results[0].text).trim();
+    }
+    return '';
+  }
+);
+
 const fetchModelList = errorCatched(async (apiUrl, apiKey) => {
   if (!apiUrl) throw new Error('请先填写API地址');
   const params = { apiurl: apiUrl };

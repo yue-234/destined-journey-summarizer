@@ -103,9 +103,18 @@ const buildPanelHtml = (settings) => `
   <div class="sa-body">
     <div class="sa-tab-pane active" data-pane="status">
       <div class="sa-section">
-        <div class="sa-section-header"><span>📚 总结条目列表</span></div>
+        <div class="sa-section-header">
+          <span>📚 总结条目列表</span>
+          <button class="sa-btn sa-btn-sm sa-btn-primary" id="sa-start-mega-summary" style="margin-left:auto">开始大总结</button>
+        </div>
         <div class="sa-section-body">
           <div id="sa-entry-list" class="sa-entry-list"><div class="sa-empty">加载中...</div></div>
+        </div>
+      </div>
+      <div class="sa-section" style="margin-top:16px">
+        <div class="sa-section-header"><span>🔷 大总结条目列表</span></div>
+        <div class="sa-section-body">
+          <div id="sa-mega-entry-list" class="sa-entry-list"><div class="sa-empty">加载中...</div></div>
         </div>
       </div>
     </div>

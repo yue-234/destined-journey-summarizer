@@ -145,3 +145,47 @@ const resetSettings = errorCatched(async () => {
   await saveSettings(defaults);
   return defaults;
 });
+
+// ---- 大总结映射管理 ----
+
+const loadMegaSummaryMap = errorCatched(async () => {
+  try {
+    const vars = getVariables({ type: 'chat' });
+    const map = vars?.[CONFIG.MEGA_SUMMARY_VAR_KEY];
+    if (map && typeof map === 'object') {
+      return map;
+    }
+    return {};
+  } catch (e) {
+    console.warn('加载大总结映射失败:', e);
+    return {};
+  }
+});
+
+const saveMegaSummaryMap = errorCatched(async (map) => {
+  insertOrAssignVariables(
+    { [CONFIG.MEGA_SUMMARY_VAR_KEY]: map || {} },
+    { type: 'chat' }
+  );
+});
+
+const getMegaSummaryMap = errorCatched(async () => {
+  return await loadMegaSummaryMap();
+});
+
+const setMegaSummaryMapping = errorCatched(async (megaSummaryName, summaryNames) => {
+  const map = await loadMegaSummaryMap();
+  map[megaSummaryName] = Array.isArray(summaryNames) ? [...summaryNames] : [];
+  await saveMegaSummaryMap(map);
+});
+
+const getMegaSummaryMapping = errorCatched(async (megaSummaryName) => {
+  const map = await loadMegaSummaryMap();
+  return map[megaSummaryName] || null;
+});
+
+const deleteMegaSummaryMapping = errorCatched(async (megaSummaryName) => {
+  const map = await loadMegaSummaryMap();
+  delete map[megaSummaryName];
+  await saveMegaSummaryMap(map);
+});

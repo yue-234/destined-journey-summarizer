@@ -231,10 +231,15 @@ input[type="checkbox"]:checked::after {
 .sa-entry-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-bottom: 1px solid var(--sa-border2); transition: background 0.15s; }
 .sa-entry-item:last-child { border-bottom: none; }
 .sa-entry-item:hover { background: rgba(108,99,255,0.07); }
+.sa-entry-item.sa-entry-selectable { cursor: pointer; }
+.sa-entry-item.sa-entry-selectable:hover { background: rgba(108,99,255,0.12); }
+.sa-entry-checkbox { margin-right: 8px; cursor: pointer; }
 .sa-entry-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sa-entry-disabled { opacity: 0.4; text-decoration: line-through; }
 .sa-entry-actions { display: flex; gap: 5px; flex-shrink: 0; }
 .sa-empty { text-align: center; padding: 28px 16px; color: var(--sa-text3); }
+.sa-mega-entry-item { background: rgba(0,212,170,0.05); border-left: 3px solid var(--sa-teal); }
+.sa-mega-entry-item:hover { background: rgba(0,212,170,0.10); }
 
 .sa-blocks-container { display: flex; flex-direction: column; gap: 8px; }
 .sa-block-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--sa-surface); border-radius: var(--sa-radius-sm); cursor: pointer; user-select: none; }

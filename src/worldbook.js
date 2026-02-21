@@ -479,3 +479,226 @@ const getSummaryContentsBefore = errorCatched(async (entryName) => {
     (e) => (parseSummaryEntryName(e.name)?.start ?? Infinity) < targetStart
   );
 });
+
+// ---- 大总结条目管理 ----
+
+const upsertMegaSummaryEntry = errorCatched(async (entryName, content, summaryNames) => {
+  await ensureWorldbookExists();
+  const wbName = getActiveWorldbookName();
+  const entries = await getWorldbookEntriesSafe();
+  
+  // 计算大总结条目的 order（从1开始）
+  const megaEntries = entries
+    .filter((e) => e && isMegaSummaryEntry(e.name))
+    .sort((a, b) => {
+      const aStart = parseMegaSummaryEntryName(a.name)?.start ?? 0;
+      const bStart = parseMegaSummaryEntryName(b.name)?.start ?? 0;
+      return aStart - bStart;
+    });
+  
+  let order = 1;
+  const parsed = parseMegaSummaryEntryName(entryName);
+  if (parsed) {
+    const existingIndex = megaEntries.findIndex((e) => e.name === entryName);
+    if (existingIndex >= 0) {
+      order = existingIndex + 1;
+    } else {
+      // 找到应该插入的位置
+      let insertIndex = 0;
+      for (let i = 0; i < megaEntries.length; i++) {
+        const eStart = parseMegaSummaryEntryName(megaEntries[i].name)?.start ?? 0;
+        if (eStart < parsed.start) {
+          insertIndex = i + 1;
+        }
+      }
+      order = insertIndex + 1;
+    }
+  }
+  
+  const existing = entries.find((e) => e && e.name === entryName);
+  if (existing) {
+    await updateWorldbookWith(wbName, (wb) => {
+      const arr = normalizeWorldbookEntries(wb);
+      const target = arr.find((e) => e && e.name === entryName);
+      if (target) {
+        target.content = content;
+        target.enabled = true;
+        target.strategy = {
+          ...(target.strategy && typeof target.strategy === 'object' ? target.strategy : {}),
+          type: 'constant',
+          keys: [entryName],
+          keys_secondary: { logic: 'and_any', keys: [] },
+          scan_depth: 'same_as_global',
+        };
+        target.position = {
+          type: 'at_depth',
+          role: CONFIG.ENTRY_ROLE,
+          depth: CONFIG.MEGA_SUMMARY_DEPTH,
+          order,
+        };
+        target.disable = false;
+        if ('disabled' in target) target.disabled = false;
+      }
+      return Array.isArray(wb) ? arr : { ...wb, entries: arr };
+    });
+  } else {
+    await createWorldbookEntries(wbName, [
+      {
+        name: entryName,
+        content,
+        enabled: true,
+        strategy: {
+          type: 'constant',
+          keys: [entryName],
+          keys_secondary: { logic: 'and_any', keys: [] },
+          scan_depth: 'same_as_global',
+        },
+        position: {
+          type: 'at_depth',
+          role: CONFIG.ENTRY_ROLE,
+          depth: CONFIG.MEGA_SUMMARY_DEPTH,
+          order,
+        },
+        probability: 100,
+        recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until: null },
+        effect: { sticky: null, cooldown: null, delay: null },
+      },
+    ]);
+  }
+  
+  // 保存大总结映射
+  await setMegaSummaryMapping(entryName, summaryNames);
+  
+  // 重新排序所有大总结条目
+  await reorderAllMegaSummaryEntries();
+  
+  const settings = getSettings();
+  if (settings.autoHideSummarizedFloors !== false) {
+    await applySummarizedFloorsVisibility();
+  }
+});
+
+const reorderAllMegaSummaryEntries = errorCatched(async () => {
+  const wbName = getActiveWorldbookName();
+  if (!wbName) return;
+  const entries = await getWorldbookEntriesSafe();
+  
+  const megaEntries = entries
+    .filter((e) => e && isMegaSummaryEntry(e.name))
+    .sort((a, b) => {
+      const aStart = parseMegaSummaryEntryName(a.name)?.start ?? 0;
+      const bStart = parseMegaSummaryEntryName(b.name)?.start ?? 0;
+      return aStart - bStart;
+    });
+  
+  if (megaEntries.length === 0) return;
+  
+  await updateWorldbookWith(wbName, (wb) => {
+    const arr = normalizeWorldbookEntries(wb);
+    megaEntries.forEach((megaEntry, idx) => {
+      const target = arr.find((e) => e && e.name === megaEntry.name);
+      if (target) {
+        target.enabled = true;
+        target.strategy = {
+          ...(target.strategy && typeof target.strategy === 'object' ? target.strategy : {}),
+          type: 'constant',
+          keys: [target.name],
+          keys_secondary: { logic: 'and_any', keys: [] },
+          scan_depth: 'same_as_global',
+        };
+        target.position = {
+          type: 'at_depth',
+          role: CONFIG.ENTRY_ROLE,
+          depth: CONFIG.MEGA_SUMMARY_DEPTH,
+          order: idx + 1,
+        };
+        target.disable = false;
+        if ('disabled' in target) target.disabled = false;
+      }
+    });
+    return Array.isArray(wb) ? arr : { ...wb, entries: arr };
+  });
+});
+
+const deleteMegaSummaryEntry = errorCatched(async (entryName) => {
+  const wbName = getActiveWorldbookName();
+  if (!wbName) return;
+  
+  // 删除条目
+  await updateWorldbookWith(wbName, (wb) => {
+    const arr = normalizeWorldbookEntries(wb);
+    const filtered = arr.filter((e) => e && e.name !== entryName);
+    return Array.isArray(wb) ? filtered : { ...wb, entries: filtered };
+  });
+  
+  // 删除映射
+  await deleteMegaSummaryMapping(entryName);
+  
+  // 重新排序
+  await reorderAllMegaSummaryEntries();
+});
+
+const restoreMegaSummaryToSummaries = errorCatched(async (megaSummaryName) => {
+  const summaryNames = await getMegaSummaryMapping(megaSummaryName);
+  if (!summaryNames || summaryNames.length === 0) {
+    toastr.warning('未找到该大总结的原始总结条目映射');
+    return;
+  }
+  
+  // 删除大总结条目
+  await deleteMegaSummaryEntry(megaSummaryName);
+  
+  // 恢复原始总结条目（它们应该还在世界书中，只是被禁用了）
+  const wbName = getActiveWorldbookName();
+  if (!wbName) return;
+  
+  await updateWorldbookWith(wbName, (wb) => {
+    const arr = normalizeWorldbookEntries(wb);
+    for (const summaryName of summaryNames) {
+      const entry = arr.find((e) => e && e.name === summaryName);
+      if (entry) {
+        entry.enabled = true;
+        entry.disable = false;
+        if ('disabled' in entry) entry.disabled = false;
+      }
+    }
+    return Array.isArray(wb) ? arr : { ...wb, entries: arr };
+  });
+  
+  // 重新排序所有总结条目
+  await reorderAllSummaryEntries();
+  
+  toastr.success(`已恢复大总结「${megaSummaryName}」的原始总结条目`);
+});
+
+const getAllMegaSummaryEntriesForDisplay = errorCatched(async () => {
+  const entries = await getWorldbookEntriesSafe();
+  return entries
+    .filter((e) => e && isMegaSummaryEntry(e.name))
+    .map((e) => ({ name: e.name, disabled: isEntryDisabled(e) }))
+    .sort(
+      (a, b) =>
+        (parseMegaSummaryEntryName(a.name)?.start ?? 0) -
+        (parseMegaSummaryEntryName(b.name)?.start ?? 0)
+    );
+});
+
+const getMegaSummaryContentsBefore = errorCatched(async (entryName) => {
+  const entries = await getWorldbookEntriesSafe();
+  const targetStart = parseMegaSummaryEntryName(entryName)?.start;
+  if (targetStart === undefined) return [];
+  
+  return entries
+    .filter((e) => {
+      if (!e || !e.content || isEntryDisabled(e)) return false;
+      const parsed = parseMegaSummaryEntryName(e.name);
+      if (!parsed) return false;
+      return parsed.start < targetStart;
+    })
+    .sort(
+      (a, b) =>
+        (parseMegaSummaryEntryName(a.name)?.start ?? 0) -
+        (parseMegaSummaryEntryName(b.name)?.start ?? 0)
+    )
+    .map((e) => ({ name: e.name, content: e.content }));
+});
