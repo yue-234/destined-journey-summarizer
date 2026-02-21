@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T12:32:45.337Z
+ * 构建时间: 2026-02-21T12:37:02.060Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -314,6 +314,14 @@ const cloneSettings = (settings) => ({
 });
 
 const migrateOldSettings = (raw) => {
+  // 迁移 temperature 和 maxTokens 的默认值（v2.6+）
+  if (raw.temperature === 'same_as_preset') {
+    raw.temperature = 1;
+  }
+  if (raw.maxTokens === 'same_as_preset') {
+    raw.maxTokens = 32000;
+  }
+  
   if (Array.isArray(raw.promptBlocks) && raw.promptBlocks.length > 0) return raw;
   const blocks = DEFAULT_PROMPT_BLOCKS.map((b) => ({ ...b }));
   for (const block of blocks) {
