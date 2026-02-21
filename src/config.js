@@ -188,7 +188,7 @@ const DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS = [
     role: 'system',
     content: `<mega_summary_rules>
 ## 整合规则
-- 将以上所有<summary>和<existing_mega_summary>中的内容按时间线合并为一份连贯记录
+- 将以上所有需要总结的内容按时间线合并为一份连贯记录
 - 相同日期、地点、时间段的内容合并叙述，去除重复和冗余
 - 保留所有关键信息：人物、事件、对话、数值、物品、关系变化
 - 仅记录/整合已有的信息，禁止添加原文未提及的任何内容
