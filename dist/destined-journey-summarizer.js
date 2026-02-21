@@ -1,12 +1,12 @@
 
 /**
- * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
- * 
+ * 命定之诗总结助手 V2.7 - 合并后的单文件脚本
+ *
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T17:29:59.286Z
- * 
+ * 构建时间: 2026-02-21T17:39:34.926Z
+ *
  * @author Rhys_z_瑞
- * @version 2.5.0
+ * @version 2.7.0
  * @license MIT
  */
 
@@ -2952,7 +2952,7 @@ const renderBlocks = (blocks, containerId = 'sa-blocks-container') => {
 const buildPanelHtml = (settings) => `
 <div class="sa-panel">
   <div class="sa-header">
-    <span>命定之诗总结助手 ✨ V2.6</span>
+    <span>命定之诗总结助手 ✨ V2.7</span>
     <button class="sa-close" id="sa-close">&times;</button>
   </div>
   <div class="sa-tabs">
@@ -3082,7 +3082,7 @@ const buildPanelHtml = (settings) => `
     <div class="sa-tab-pane" data-pane="about">
         <div class="sa-about-content">
             <h3>命定之诗总结助手</h3>
-            <p>版本: 2.6</p>
+            <p>版本: 2.7</p>
             <p>作者: Rhys_z_瑞</p>
             <br>
             <p>命定之诗角色卡专用，用于其它卡不保证效果</p>
@@ -4273,11 +4273,11 @@ eventOn(tavern_events.CHAT_CHANGED, async () => {
 loadSettings()
   .then(async () => {
     await migrateOldWorldbookName();
-    toastr.success('命定之诗总结助手 (V2.5) 已加载。');
+    toastr.success('命定之诗总结助手 (V2.7) 已加载。');
   })
   .catch((e) => {
     console.warn('初始化加载设置失败:', e);
-    toastr.success('命定之诗总结助手 (V2.5) 已加载（使用默认设置）。');
+    toastr.success('命定之诗总结助手 (V2.7) 已加载（使用默认设置）。');
   });
 
 
