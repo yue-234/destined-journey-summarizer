@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T15:18:36.880Z
+ * 构建时间: 2026-02-21T15:38:16.366Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -1768,6 +1768,78 @@ const restoreMegaSummaryToSummaries = errorCatched(async (megaSummaryName) => {
   toastr.success(`已恢复大总结「${megaSummaryName}」的原始总结条目`);
 });
 
+const deactivateMegaSummaryEntry = errorCatched(async (megaSummaryName) => {
+  const summaryNames = await getMegaSummaryMapping(megaSummaryName);
+  if (!summaryNames || summaryNames.length === 0) {
+    toastr.warning('未找到该大总结的原始总结条目映射');
+    return;
+  }
+  
+  const wbName = getActiveWorldbookName();
+  if (!wbName) return;
+  
+  await updateWorldbookWith(wbName, (wb) => {
+    const arr = normalizeWorldbookEntries(wb);
+    // 禁用大总结条目
+    const megaEntry = arr.find((e) => e && e.name === megaSummaryName);
+    if (megaEntry) {
+      megaEntry.enabled = false;
+      megaEntry.disable = true;
+    }
+    // 启用对应的总结条目
+    for (const summaryName of summaryNames) {
+      const entry = arr.find((e) => e && e.name === summaryName);
+      if (entry) {
+        entry.enabled = true;
+        entry.disable = false;
+        if ('disabled' in entry) entry.disabled = false;
+      }
+    }
+    return Array.isArray(wb) ? arr : { ...wb, entries: arr };
+  });
+  
+  // 重新排序所有总结条目
+  await reorderAllSummaryEntries();
+  
+  toastr.success(`已关闭大总结「${megaSummaryName}」，原始总结条目已恢复`);
+});
+
+const activateMegaSummaryEntry = errorCatched(async (megaSummaryName) => {
+  const summaryNames = await getMegaSummaryMapping(megaSummaryName);
+  if (!summaryNames || summaryNames.length === 0) {
+    toastr.warning('未找到该大总结的原始总结条目映射');
+    return;
+  }
+  
+  const wbName = getActiveWorldbookName();
+  if (!wbName) return;
+  
+  await updateWorldbookWith(wbName, (wb) => {
+    const arr = normalizeWorldbookEntries(wb);
+    // 启用大总结条目
+    const megaEntry = arr.find((e) => e && e.name === megaSummaryName);
+    if (megaEntry) {
+      megaEntry.enabled = true;
+      megaEntry.disable = false;
+      if ('disabled' in megaEntry) megaEntry.disabled = false;
+    }
+    // 禁用对应的总结条目
+    for (const summaryName of summaryNames) {
+      const entry = arr.find((e) => e && e.name === summaryName);
+      if (entry) {
+        entry.enabled = false;
+        entry.disable = true;
+      }
+    }
+    return Array.isArray(wb) ? arr : { ...wb, entries: arr };
+  });
+  
+  // 重新排序所有大总结条目
+  await reorderAllMegaSummaryEntries();
+  
+  toastr.success(`已启用大总结「${megaSummaryName}」，对应总结条目已禁用`);
+});
+
 const getAllMegaSummaryEntriesForDisplay = errorCatched(async () => {
   const entries = await getWorldbookEntriesSafe();
   return entries
@@ -2516,6 +2588,10 @@ const PANEL_STYLES = `
 .sa-btn-primary:hover { background: linear-gradient(135deg, var(--sa-accent2), #9d6fff); box-shadow: 0 4px 18px rgba(108,99,255,0.5); }
 .sa-btn-danger { background: var(--sa-red-dim); border-color: rgba(255,92,122,0.3); color: var(--sa-red); }
 .sa-btn-danger:hover { background: rgba(255,92,122,0.25); border-color: rgba(255,92,122,0.5); color: #ff7a93; }
+.sa-btn-success { background: rgba(0,212,170,0.12); border-color: rgba(0,212,170,0.3); color: #00d4aa; }
+.sa-btn-success:hover { background: rgba(0,212,170,0.22); border-color: rgba(0,212,170,0.5); color: #2ae8c0; }
+.sa-btn-warn { background: rgba(255,193,7,0.12); border-color: rgba(255,193,7,0.3); color: #ffc107; }
+.sa-btn-warn:hover { background: rgba(255,193,7,0.22); border-color: rgba(255,193,7,0.5); color: #ffcd39; }
 .sa-btn-sm { padding: 5px 11px; font-size: 12px; min-height: 28px; }
 
 .sa-checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 12px; }
@@ -2654,10 +2730,14 @@ const renderMegaEntryList = (entries) => {
       <span class="sa-entry-name ${e.disabled ? 'sa-entry-disabled' : ''}" title="${escapeHtml(e.name)}">
         🔷 ${escapeHtml(e.name)}
       </span>
+      ${e.disabled ? '<span class="sa-entry-badge sa-entry-badge-disabled" title="条目已关闭">已关闭</span>' : ''}
       <div class="sa-entry-actions">
         <button class="sa-btn sa-btn-sm" data-action="view-edit-mega" data-name="${escapeHtml(e.name)}">查看/编辑</button>
         <button class="sa-btn sa-btn-sm" data-action="regenerate-mega" data-name="${escapeHtml(e.name)}">重新生成</button>
-        <button class="sa-btn sa-btn-sm" data-action="restore-mega" data-name="${escapeHtml(e.name)}">回档</button>
+        ${e.disabled
+          ? `<button class="sa-btn sa-btn-sm sa-btn-success" data-action="activate-mega" data-name="${escapeHtml(e.name)}">启用</button>`
+          : `<button class="sa-btn sa-btn-sm sa-btn-warn" data-action="deactivate-mega" data-name="${escapeHtml(e.name)}">回档</button>`
+        }
         <button class="sa-btn sa-btn-sm sa-btn-danger" data-action="delete-mega" data-name="${escapeHtml(e.name)}">删除</button>
       </div>
     </div>
@@ -3403,6 +3483,7 @@ const refreshEntryList = async (panel, enableSelection = false) => {
     // 获取实际存在的大总结条目名称，用于验证 mapping 的有效性
     const megaEntries = await getAllMegaSummaryEntriesForDisplay();
     const existingMegaNames = new Set(megaEntries.map(e => e.name));
+    const activeMegaNames = new Set(megaEntries.filter(e => !e.disabled).map(e => e.name));
     
     const usedInMega = new Set();
     let needCleanup = false;
@@ -3412,6 +3493,8 @@ const refreshEntryList = async (panel, enableSelection = false) => {
         needCleanup = true;
         continue;
       }
+      // 只有启用的大总结才将其对应的总结条目标记为已被大总结
+      if (!activeMegaNames.has(megaName)) continue;
       if (Array.isArray(summaryNames)) {
         summaryNames.forEach(name => usedInMega.add(name));
       }
@@ -3572,14 +3655,27 @@ const handleMegaEntryAction = async (overlay, action, entryName) => {
       await refreshStatus(overlay);
       break;
     }
-    case 'restore-mega': {
+    case 'deactivate-mega': {
       const cfm = await SillyTavern.callGenericPopup(
         `确定要回档大总结条目「${escapeHtml(entryName)}」吗？\n\n` +
-          `回档后将删除该大总结条目，并恢复其包含的原始总结条目。`,
+          `回档后将关闭该大总结条目，并恢复其包含的原始总结条目。`,
         SillyTavern.POPUP_TYPE.CONFIRM
       );
       if (cfm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
-      await restoreMegaSummaryToSummaries(entryName);
+      await deactivateMegaSummaryEntry(entryName);
+      await refreshMegaEntryList(overlay);
+      await refreshEntryList(overlay);
+      await refreshStatus(overlay);
+      break;
+    }
+    case 'activate-mega': {
+      const cfm = await SillyTavern.callGenericPopup(
+        `确定要启用大总结条目「${escapeHtml(entryName)}」吗？\n\n` +
+          `启用后将开启该大总结条目，并禁用其包含的原始总结条目。`,
+        SillyTavern.POPUP_TYPE.CONFIRM
+      );
+      if (cfm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
+      await activateMegaSummaryEntry(entryName);
       await refreshMegaEntryList(overlay);
       await refreshEntryList(overlay);
       await refreshStatus(overlay);
