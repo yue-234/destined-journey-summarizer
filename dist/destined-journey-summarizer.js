@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T16:16:12.497Z
+ * 构建时间: 2026-02-21T16:33:58.784Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -1090,9 +1090,20 @@ const fetchModelList = errorCatched(async (apiUrl, apiKey) => {
 
   if (getModelListFn) {
     try {
-      return await getModelListFn(params);
+      const result = await getModelListFn(params);
+      // 验证返回结果是否为有效的模型列表
+      if (result && Array.isArray(result) && result.length > 0) {
+        console.log('Successfully fetched models via getModelList:', result.length);
+        return result;
+      }
+      console.warn('getModelList returned invalid data, falling back to fetch:', result);
     } catch (e) {
       console.warn('Global getModelList failed, falling back to fetch', e);
+      // 如果是明确的错误（如权限问题），不要fallback
+      const status = extractHttpStatus(e);
+      if (status && (status === 401 || status === 403)) {
+        throw new Error(`API认证失败 [HTTP ${status}]: ${e.message || '请检查API密钥'}`);
+      }
     }
   }
 
@@ -3851,13 +3862,17 @@ const bindPanelEvents = (overlay, initialSettings) => {
       if (models && models.length > 0) {
         models.forEach((m) => select.add(new Option(m, m)));
         toastr.success(`获取到 ${models.length} 个模型`);
-        saveAndUpdate({ customApiModel: select.value });
+        // 自动选择第一个模型并触发自动保存
+        if (select.value) {
+          autoSave();
+        }
       } else {
         select.innerHTML = '<option value="">未获取到模型</option>';
         toastr.warning('未获取到任何模型');
       }
     } catch (err) {
       toastr.error(`获取模型列表失败: ${err.message}`);
+      console.error('获取模型列表详细错误:', err);
     }
   });
 
