@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T17:20:19.501Z
+ * 构建时间: 2026-02-21T17:29:59.286Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -350,7 +350,7 @@ const DEFAULT_SETTINGS = {
   customApiSource: 'openai',
   temperature: 1,
   maxTokens: 32000,
-  includeTags: ['tp', 'gametxt', 'summary'],
+  includeTags: ['tp', 'gametxt'],
   excludeTags: ['think'],
   excludeHtmlComments: true,
   triggerFloorCount: 50,
@@ -3037,7 +3037,7 @@ const buildPanelHtml = (settings) => `
             </div>
           </div>
            <div class="sa-settings-pane" data-sub-pane="tags">
-            <div class="sa-row"><span class="sa-label">提取标签</span><input class="sa-input" id="sa-include-tags" type="text" placeholder="gametxt, summary" value="${escapeHtml(tagsToString(settings.includeTags))}"></div>
+            <div class="sa-row"><span class="sa-label">提取标签</span><input class="sa-input" id="sa-include-tags" type="text" placeholder="tp, gametxt" value="${escapeHtml(tagsToString(settings.includeTags))}"></div>
             <div class="sa-hint">只提取这些标签内的内容发给AI。多个标签用逗号分隔。留空则发送完整消息。</div>
             <div class="sa-row" style="margin-top:12px"><span class="sa-label">排除标签</span><input class="sa-input" id="sa-exclude-tags" type="text" placeholder="think, hidden" value="${escapeHtml(tagsToString(settings.excludeTags))}"></div>
             <div class="sa-hint">排除这些标签内的内容。在提取之前执行。</div>
