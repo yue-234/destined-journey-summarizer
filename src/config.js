@@ -65,6 +65,7 @@ const DEFAULT_PROMPT_BLOCKS = [
     role: 'user',
     enabled: true,
     leadText: '以下是本次需要总结的聊天内容：',
+    xmlTag: 'chat_content',
   },
   {
     id: 'summary_rules',
@@ -73,7 +74,7 @@ const DEFAULT_PROMPT_BLOCKS = [
     role: 'system',
     content: `<summary_rules>
 ## 提取规则
-- 总结、合并所有聊天消息中的内容
+- 总结、合并所有<chat_content>中的内容
 - 按时间顺序组织，相同时段的内容合并叙述
 - 保留所有关键信息：人物、事件、对话、数值、物品
 - 仅记录/整合已有的信息，禁止添加原文未提及的任何内容
@@ -180,6 +181,7 @@ const DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS = [
     role: 'user',
     enabled: true,
     leadText: '以下是需要整合的多段剧情记录：',
+    xmlTag: 'summary_records',
   },
   {
     id: 'mega_summary_rules',
@@ -188,7 +190,7 @@ const DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS = [
     role: 'system',
     content: `<mega_summary_rules>
 ## 整合规则
-- 将以上多段剧情记录按时间线合并为一份连贯记录
+- 将<summary_records>中的多段剧情记录按时间线合并为一份连贯记录
 - 相同日期、地点、时间段的内容合并叙述，去除重复和冗余
 - 保留所有关键信息：人物、事件、对话、数值、物品、关系变化
 - 仅记录/整合已有的信息，禁止添加原文未提及的任何内容
