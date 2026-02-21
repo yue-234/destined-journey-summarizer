@@ -98,7 +98,7 @@ const renderBlocks = (blocks, containerId = 'sa-blocks-container') => {
 const buildPanelHtml = (settings) => `
 <div class="sa-panel">
   <div class="sa-header">
-    <span>命定之诗总结助手 ✨ V2.6</span>
+    <span>命定之诗总结助手 ✨ V2.7</span>
     <button class="sa-close" id="sa-close">&times;</button>
   </div>
   <div class="sa-tabs">
@@ -228,7 +228,7 @@ const buildPanelHtml = (settings) => `
     <div class="sa-tab-pane" data-pane="about">
         <div class="sa-about-content">
             <h3>命定之诗总结助手</h3>
-            <p>版本: 2.6</p>
+            <p>版本: 2.7</p>
             <p>作者: Rhys_z_瑞</p>
             <br>
             <p>命定之诗角色卡专用，用于其它卡不保证效果</p>

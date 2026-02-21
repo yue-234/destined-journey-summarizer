@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D12.0.0-brightgreen)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.5.0-blue)](https://github.com/yourusername/destined-journey-summarizer)
+[![Version](https://img.shields.io/badge/version-2.7.0-blue)](https://github.com/yourusername/destined-journey-summarizer)
 
 用于自动/手动总结聊天内容并存入世界书
 
@@ -41,19 +41,21 @@
 ### 构建步骤
 
 1. 克隆仓库：
+
 ```bash
 git clone https://github.com/yourusername/destined-journey-summarizer.git
 cd destined-journey-summarizer
 ```
 
-2. 运行构建脚本：
+1. 运行构建脚本：
+
 ```bash
 node build.js
 ```
 
-3. 构建产物将输出到 `dist/destined-journey-summarizer.js`
+1. 构建产物将输出到 `dist/destined-journey-summarizer.js`
 
-4. 将生成的脚本文件导入到 SillyTavern 中使用
+2. 将生成的脚本文件导入到 SillyTavern 中使用
 
 ## 📖 使用说明
 
