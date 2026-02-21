@@ -25,7 +25,7 @@ const callSummaryApi = errorCatched(
     const settings = getSettings();
     const customApi = buildCustomApiConfig(settings);
     const useNoTrans = settings.noTransTag !== false;
-    const NO_TRANS = '<|no-trans|>';
+    const NO_TRANS = settings.noTransTagValue || '<|no-trans|>';
     const wrapContent = (text) => (useNoTrans ? `${NO_TRANS}${text}` : text);
 
     const orderedPrompts = [];
@@ -96,7 +96,14 @@ const callSummaryApi = errorCatched(
         const result = await generateRawFn(config);
         return result ? String(result).trim() : '';
       } catch (e) {
-        console.warn('Global generateRaw failed, trying fetch fallback', e);
+        // 提取 HTTP 状态码并增强错误信息
+        const status = extractHttpStatus(e);
+        const statusInfo = status ? ` [HTTP ${status}]` : '';
+        console.warn(`Global generateRaw failed${statusInfo}, trying fetch fallback`, e);
+        // 如果是明确的 HTTP 错误（4xx/5xx），直接抛出而非 fallback
+        if (status && status >= 400) {
+          throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
+        }
       }
     }
 
@@ -137,7 +144,7 @@ const callMegaSummaryApi = errorCatched(
     const settings = getSettings();
     const customApi = buildCustomApiConfig(settings);
     const useNoTrans = settings.noTransTag !== false;
-    const NO_TRANS = '<|no-trans|>';
+    const NO_TRANS = settings.noTransTagValue || '<|no-trans|>';
     const wrapContent = (text) => (useNoTrans ? `${NO_TRANS}${text}` : text);
 
     const orderedPrompts = [];
@@ -198,7 +205,14 @@ const callMegaSummaryApi = errorCatched(
         const result = await generateRawFn(config);
         return result ? String(result).trim() : '';
       } catch (e) {
-        console.warn('Global generateRaw failed, trying fetch fallback', e);
+        // 提取 HTTP 状态码并增强错误信息
+        const status = extractHttpStatus(e);
+        const statusInfo = status ? ` [HTTP ${status}]` : '';
+        console.warn(`Global generateRaw failed${statusInfo}, trying fetch fallback`, e);
+        // 如果是明确的 HTTP 错误（4xx/5xx），直接抛出而非 fallback
+        if (status && status >= 400) {
+          throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
+        }
       }
     }
 

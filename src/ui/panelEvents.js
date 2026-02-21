@@ -110,6 +110,7 @@ const collectSettingsFromPanel = (overlay) => {
     autoTriggerConfirm: checked('sa-auto-confirm'),
     autoHideSummarizedFloors: checked('sa-auto-hide-summarized'),
     noTransTag: checked('sa-no-trans-tag'),
+    noTransTagValue: val('sa-no-trans-tag-value') || '<|no-trans|>',
     userPrefix: val('sa-user-prefix') || '{{user}}',
     assistantPrefix: val('sa-assistant-prefix') || '{{char}}',
     apiMode: overlay.querySelector('input[name="sa-api-mode"]:checked')?.value || 'tavern',

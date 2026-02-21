@@ -148,7 +148,7 @@ const buildPanelHtml = (settings) => `
               <label><input type="checkbox" id="sa-include-old-summary" ${settings.includeOldSummary ? 'checked' : ''}> 发送已有总结</label>
               <label><input type="checkbox" id="sa-auto-confirm" ${settings.autoTriggerConfirm ? 'checked' : ''}> 自动触发时确认</label>
               <label><input type="checkbox" id="sa-auto-hide-summarized" ${settings.autoHideSummarizedFloors !== false ? 'checked' : ''}> 自动隐藏楼层</label>
-              <label><input type="checkbox" id="sa-no-trans-tag" ${settings.noTransTag !== false ? 'checked' : ''}> 防合并标记</label>
+              <label class="sa-no-trans-label"><input type="checkbox" id="sa-no-trans-tag" ${settings.noTransTag !== false ? 'checked' : ''}> 防合并标记(kemini或noass脚本开)<input class="sa-input sa-no-trans-input" id="sa-no-trans-tag-value" type="text" placeholder="<|no-trans|>" value="${escapeHtml(settings.noTransTagValue || '<|no-trans|>')}" title="自定义防合并标记"></label>
             </div>
             <div class="sa-row" style="margin-top:12px"><span class="sa-label">用户前缀</span><input class="sa-input" id="sa-user-prefix" type="text" placeholder="{{user}}" value="${escapeHtml(settings.userPrefix || '{{user}}')}"></div>
             <div class="sa-row"><span class="sa-label">AI前缀</span><input class="sa-input" id="sa-assistant-prefix" type="text" placeholder="{{char}}" value="${escapeHtml(settings.assistantPrefix || '{{char}}')}"></div>

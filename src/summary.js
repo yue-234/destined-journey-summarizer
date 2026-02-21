@@ -172,8 +172,9 @@ const executeSummary = errorCatched(
       toastr.success(`总结已保存：${entryName}`);
     } catch (error) {
       console.error('总结过程中出错:', error);
-      showSummaryHintFor(`总结失败：${error.message}`, 'error', 4200);
-      toastr.error(`总结失败: ${error.message}`);
+      const errMsg = formatErrorMessage(error);
+      showSummaryHintFor(`总结失败：${errMsg}`, 'error', 4200);
+      toastr.error(`总结失败: ${errMsg}`);
     }
   }
 );
@@ -231,8 +232,9 @@ const regenerateAndReplaceEntry = errorCatched(async (entryName) => {
     toastr.success(`已重新生成并替换：${entryName}`);
   } catch (error) {
     console.error('重新生成失败:', error);
-    showSummaryHintFor(`重新生成失败：${error.message}`, 'error', 4200);
-    toastr.error(`重新生成失败: ${error.message}`);
+    const errMsg = formatErrorMessage(error);
+    showSummaryHintFor(`重新生成失败：${errMsg}`, 'error', 4200);
+    toastr.error(`重新生成失败: ${errMsg}`);
   }
 });
 
@@ -311,8 +313,9 @@ const executeMegaSummary = errorCatched(
       toastr.success(`大总结已保存：${entryName}`);
     } catch (error) {
       console.error('大总结过程中出错:', error);
-      showSummaryHintFor(`大总结失败：${error.message}`, 'error', 4200);
-      toastr.error(`大总结失败: ${error.message}`);
+      const errMsg = formatErrorMessage(error);
+      showSummaryHintFor(`大总结失败：${errMsg}`, 'error', 4200);
+      toastr.error(`大总结失败: ${errMsg}`);
     }
   }
 );
@@ -366,7 +369,8 @@ const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
     toastr.success(`已重新生成并替换：${entryName}`);
   } catch (error) {
     console.error('重新生成大总结失败:', error);
-    showSummaryHintFor(`重新生成失败：${error.message}`, 'error', 4200);
-    toastr.error(`重新生成失败: ${error.message}`);
+    const errMsg = formatErrorMessage(error);
+    showSummaryHintFor(`重新生成失败：${errMsg}`, 'error', 4200);
+    toastr.error(`重新生成失败: ${errMsg}`);
   }
 });

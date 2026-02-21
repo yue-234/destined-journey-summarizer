@@ -202,6 +202,9 @@ const PANEL_STYLES = `
   color: var(--sa-text2); transition: color 0.15s;
 }
 .sa-checkbox-grid label:hover, .sa-radio-group label:hover { color: var(--sa-text); }
+.sa-no-trans-label { grid-column: 1 / -1; flex-wrap: wrap; }
+.sa-no-trans-input { all: unset; width: 110px; height: 24px; padding: 2px 6px; margin-left: 4px; font-size: 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; background: rgba(255,255,255,0.06); color: var(--sa-text); box-sizing: border-box; vertical-align: middle; }
+.sa-no-trans-input:focus { border-color: var(--sa-accent); outline: none; }
 
 input[type="checkbox"], input[type="radio"] {
   all: unset; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2);

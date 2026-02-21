@@ -274,6 +274,7 @@ const DEFAULT_SETTINGS = {
   userPrefix: '{{user}}',
   assistantPrefix: '{{char}}',
   noTransTag: true,
+  noTransTagValue: '<|no-trans|>',
   promptBlocks: DEFAULT_PROMPT_BLOCKS.map((b) => ({ ...b })),
   megaPromptBlocks: DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS.map((b) => ({ ...b })),
 };

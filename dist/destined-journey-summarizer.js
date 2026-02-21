@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T15:01:45.996Z
+ * 构建时间: 2026-02-21T15:17:22.450Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -22,13 +22,58 @@
  * 将 async 函数包装为自动捕获异常并显示 toastr 提示的版本
  */
 
+/**
+ * 从错误对象中提取 HTTP 状态码信息
+ * 尝试多种方式获取状态码以适配酒馆内部错误格式
+ */
+const extractHttpStatus = (error) => {
+  // 1. 直接检查 error.status 属性（酒馆内部可能设置）
+  if (error.status && typeof error.status === 'number') {
+    return error.status;
+  }
+  // 2. 检查 error.statusCode 属性
+  if (error.statusCode && typeof error.statusCode === 'number') {
+    return error.statusCode;
+  }
+  // 3. 检查 error.response?.status
+  if (error.response && typeof error.response.status === 'number') {
+    return error.response.status;
+  }
+  // 4. 从错误消息中提取状态码（如 "HTTP 403"、"(403)"、"status 500" 等）
+  if (error.message) {
+    const match = error.message.match(/\b(HTTP\s*)?(\d{3})\b/i);
+    if (match) {
+      const code = parseInt(match[2], 10);
+      if (code >= 400 && code <= 599) return code;
+    }
+  }
+  return null;
+};
+
+/**
+ * 格式化错误消息，包含 HTTP 状态码
+ */
+const formatErrorMessage = (error) => {
+  const status = extractHttpStatus(error);
+  const baseMsg = error.message || '未知错误';
+  if (status) {
+    // 如果消息中已包含状态码，不重复添加
+    if (baseMsg.includes(String(status))) {
+      return `[HTTP ${status}] ${baseMsg}`;
+    }
+    return `[HTTP ${status}] ${baseMsg}`;
+  }
+  return baseMsg;
+};
+
 function errorCatched(fn) {
   return async (...args) => {
     try {
       return await fn(...args);
     } catch (error) {
       console.error('[SummaryAssist] Catched error:', error);
-      toastr.error(`[总结助手] 操作失败: ${error.message}`);
+      const formattedMsg = formatErrorMessage(error);
+      toastr.error(`[总结助手] 操作失败: ${formattedMsg}`);
     }
   };
 }
@@ -313,6 +358,7 @@ const DEFAULT_SETTINGS = {
   userPrefix: '{{user}}',
   assistantPrefix: '{{char}}',
   noTransTag: true,
+  noTransTagValue: '<|no-trans|>',
   promptBlocks: DEFAULT_PROMPT_BLOCKS.map((b) => ({ ...b })),
   megaPromptBlocks: DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS.map((b) => ({ ...b })),
 };
@@ -775,7 +821,7 @@ const callSummaryApi = errorCatched(
     const settings = getSettings();
     const customApi = buildCustomApiConfig(settings);
     const useNoTrans = settings.noTransTag !== false;
-    const NO_TRANS = '<|no-trans|>';
+    const NO_TRANS = settings.noTransTagValue || '<|no-trans|>';
     const wrapContent = (text) => (useNoTrans ? `${NO_TRANS}${text}` : text);
 
     const orderedPrompts = [];
@@ -846,7 +892,14 @@ const callSummaryApi = errorCatched(
         const result = await generateRawFn(config);
         return result ? String(result).trim() : '';
       } catch (e) {
-        console.warn('Global generateRaw failed, trying fetch fallback', e);
+        // 提取 HTTP 状态码并增强错误信息
+        const status = extractHttpStatus(e);
+        const statusInfo = status ? ` [HTTP ${status}]` : '';
+        console.warn(`Global generateRaw failed${statusInfo}, trying fetch fallback`, e);
+        // 如果是明确的 HTTP 错误（4xx/5xx），直接抛出而非 fallback
+        if (status && status >= 400) {
+          throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
+        }
       }
     }
 
@@ -887,7 +940,7 @@ const callMegaSummaryApi = errorCatched(
     const settings = getSettings();
     const customApi = buildCustomApiConfig(settings);
     const useNoTrans = settings.noTransTag !== false;
-    const NO_TRANS = '<|no-trans|>';
+    const NO_TRANS = settings.noTransTagValue || '<|no-trans|>';
     const wrapContent = (text) => (useNoTrans ? `${NO_TRANS}${text}` : text);
 
     const orderedPrompts = [];
@@ -948,7 +1001,14 @@ const callMegaSummaryApi = errorCatched(
         const result = await generateRawFn(config);
         return result ? String(result).trim() : '';
       } catch (e) {
-        console.warn('Global generateRaw failed, trying fetch fallback', e);
+        // 提取 HTTP 状态码并增强错误信息
+        const status = extractHttpStatus(e);
+        const statusInfo = status ? ` [HTTP ${status}]` : '';
+        console.warn(`Global generateRaw failed${statusInfo}, trying fetch fallback`, e);
+        // 如果是明确的 HTTP 错误（4xx/5xx），直接抛出而非 fallback
+        if (status && status >= 400) {
+          throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
+        }
       }
     }
 
@@ -2053,8 +2113,9 @@ const executeSummary = errorCatched(
       toastr.success(`总结已保存：${entryName}`);
     } catch (error) {
       console.error('总结过程中出错:', error);
-      showSummaryHintFor(`总结失败：${error.message}`, 'error', 4200);
-      toastr.error(`总结失败: ${error.message}`);
+      const errMsg = formatErrorMessage(error);
+      showSummaryHintFor(`总结失败：${errMsg}`, 'error', 4200);
+      toastr.error(`总结失败: ${errMsg}`);
     }
   }
 );
@@ -2112,8 +2173,9 @@ const regenerateAndReplaceEntry = errorCatched(async (entryName) => {
     toastr.success(`已重新生成并替换：${entryName}`);
   } catch (error) {
     console.error('重新生成失败:', error);
-    showSummaryHintFor(`重新生成失败：${error.message}`, 'error', 4200);
-    toastr.error(`重新生成失败: ${error.message}`);
+    const errMsg = formatErrorMessage(error);
+    showSummaryHintFor(`重新生成失败：${errMsg}`, 'error', 4200);
+    toastr.error(`重新生成失败: ${errMsg}`);
   }
 });
 
@@ -2192,8 +2254,9 @@ const executeMegaSummary = errorCatched(
       toastr.success(`大总结已保存：${entryName}`);
     } catch (error) {
       console.error('大总结过程中出错:', error);
-      showSummaryHintFor(`大总结失败：${error.message}`, 'error', 4200);
-      toastr.error(`大总结失败: ${error.message}`);
+      const errMsg = formatErrorMessage(error);
+      showSummaryHintFor(`大总结失败：${errMsg}`, 'error', 4200);
+      toastr.error(`大总结失败: ${errMsg}`);
     }
   }
 );
@@ -2247,8 +2310,9 @@ const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
     toastr.success(`已重新生成并替换：${entryName}`);
   } catch (error) {
     console.error('重新生成大总结失败:', error);
-    showSummaryHintFor(`重新生成失败：${error.message}`, 'error', 4200);
-    toastr.error(`重新生成失败: ${error.message}`);
+    const errMsg = formatErrorMessage(error);
+    showSummaryHintFor(`重新生成失败：${errMsg}`, 'error', 4200);
+    toastr.error(`重新生成失败: ${errMsg}`);
   }
 });
 
@@ -2460,6 +2524,9 @@ const PANEL_STYLES = `
   color: var(--sa-text2); transition: color 0.15s;
 }
 .sa-checkbox-grid label:hover, .sa-radio-group label:hover { color: var(--sa-text); }
+.sa-no-trans-label { grid-column: 1 / -1; flex-wrap: wrap; }
+.sa-no-trans-input { all: unset; width: 110px; height: 24px; padding: 2px 6px; margin-left: 4px; font-size: 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; background: rgba(255,255,255,0.06); color: var(--sa-text); box-sizing: border-box; vertical-align: middle; }
+.sa-no-trans-input:focus { border-color: var(--sa-accent); outline: none; }
 
 input[type="checkbox"], input[type="radio"] {
   all: unset; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2);
@@ -2801,7 +2868,7 @@ const buildPanelHtml = (settings) => `
               <label><input type="checkbox" id="sa-include-old-summary" ${settings.includeOldSummary ? 'checked' : ''}> 发送已有总结</label>
               <label><input type="checkbox" id="sa-auto-confirm" ${settings.autoTriggerConfirm ? 'checked' : ''}> 自动触发时确认</label>
               <label><input type="checkbox" id="sa-auto-hide-summarized" ${settings.autoHideSummarizedFloors !== false ? 'checked' : ''}> 自动隐藏楼层</label>
-              <label><input type="checkbox" id="sa-no-trans-tag" ${settings.noTransTag !== false ? 'checked' : ''}> 防合并标记</label>
+              <label class="sa-no-trans-label"><input type="checkbox" id="sa-no-trans-tag" ${settings.noTransTag !== false ? 'checked' : ''}> 防合并标记(kemini或noass脚本开)<input class="sa-input sa-no-trans-input" id="sa-no-trans-tag-value" type="text" placeholder="<|no-trans|>" value="${escapeHtml(settings.noTransTagValue || '<|no-trans|>')}" title="自定义防合并标记"></label>
             </div>
             <div class="sa-row" style="margin-top:12px"><span class="sa-label">用户前缀</span><input class="sa-input" id="sa-user-prefix" type="text" placeholder="{{user}}" value="${escapeHtml(settings.userPrefix || '{{user}}')}"></div>
             <div class="sa-row"><span class="sa-label">AI前缀</span><input class="sa-input" id="sa-assistant-prefix" type="text" placeholder="{{char}}" value="${escapeHtml(settings.assistantPrefix || '{{char}}')}"></div>
@@ -3007,6 +3074,7 @@ const collectSettingsFromPanel = (overlay) => {
     autoTriggerConfirm: checked('sa-auto-confirm'),
     autoHideSummarizedFloors: checked('sa-auto-hide-summarized'),
     noTransTag: checked('sa-no-trans-tag'),
+    noTransTagValue: val('sa-no-trans-tag-value') || '<|no-trans|>',
     userPrefix: val('sa-user-prefix') || '{{user}}',
     assistantPrefix: val('sa-assistant-prefix') || '{{char}}',
     apiMode: overlay.querySelector('input[name="sa-api-mode"]:checked')?.value || 'tavern',
