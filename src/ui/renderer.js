@@ -46,10 +46,14 @@ const renderMegaEntryList = (entries) => {
       <span class="sa-entry-name ${e.disabled ? 'sa-entry-disabled' : ''}" title="${escapeHtml(e.name)}">
         🔷 ${escapeHtml(e.name)}
       </span>
+      ${e.disabled ? '<span class="sa-entry-badge sa-entry-badge-disabled" title="条目已关闭">已关闭</span>' : ''}
       <div class="sa-entry-actions">
         <button class="sa-btn sa-btn-sm" data-action="view-edit-mega" data-name="${escapeHtml(e.name)}">查看/编辑</button>
         <button class="sa-btn sa-btn-sm" data-action="regenerate-mega" data-name="${escapeHtml(e.name)}">重新生成</button>
-        <button class="sa-btn sa-btn-sm" data-action="restore-mega" data-name="${escapeHtml(e.name)}">回档</button>
+        ${e.disabled
+          ? `<button class="sa-btn sa-btn-sm sa-btn-success" data-action="activate-mega" data-name="${escapeHtml(e.name)}">启用</button>`
+          : `<button class="sa-btn sa-btn-sm sa-btn-warn" data-action="deactivate-mega" data-name="${escapeHtml(e.name)}">回档</button>`
+        }
         <button class="sa-btn sa-btn-sm sa-btn-danger" data-action="delete-mega" data-name="${escapeHtml(e.name)}">删除</button>
       </div>
     </div>

@@ -439,6 +439,7 @@ const refreshEntryList = async (panel, enableSelection = false) => {
     // 获取实际存在的大总结条目名称，用于验证 mapping 的有效性
     const megaEntries = await getAllMegaSummaryEntriesForDisplay();
     const existingMegaNames = new Set(megaEntries.map(e => e.name));
+    const activeMegaNames = new Set(megaEntries.filter(e => !e.disabled).map(e => e.name));
     
     const usedInMega = new Set();
     let needCleanup = false;
@@ -448,6 +449,8 @@ const refreshEntryList = async (panel, enableSelection = false) => {
         needCleanup = true;
         continue;
       }
+      // 只有启用的大总结才将其对应的总结条目标记为已被大总结
+      if (!activeMegaNames.has(megaName)) continue;
       if (Array.isArray(summaryNames)) {
         summaryNames.forEach(name => usedInMega.add(name));
       }
@@ -608,14 +611,27 @@ const handleMegaEntryAction = async (overlay, action, entryName) => {
       await refreshStatus(overlay);
       break;
     }
-    case 'restore-mega': {
+    case 'deactivate-mega': {
       const cfm = await SillyTavern.callGenericPopup(
         `确定要回档大总结条目「${escapeHtml(entryName)}」吗？\n\n` +
-          `回档后将删除该大总结条目，并恢复其包含的原始总结条目。`,
+          `回档后将关闭该大总结条目，并恢复其包含的原始总结条目。`,
         SillyTavern.POPUP_TYPE.CONFIRM
       );
       if (cfm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
-      await restoreMegaSummaryToSummaries(entryName);
+      await deactivateMegaSummaryEntry(entryName);
+      await refreshMegaEntryList(overlay);
+      await refreshEntryList(overlay);
+      await refreshStatus(overlay);
+      break;
+    }
+    case 'activate-mega': {
+      const cfm = await SillyTavern.callGenericPopup(
+        `确定要启用大总结条目「${escapeHtml(entryName)}」吗？\n\n` +
+          `启用后将开启该大总结条目，并禁用其包含的原始总结条目。`,
+        SillyTavern.POPUP_TYPE.CONFIRM
+      );
+      if (cfm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
+      await activateMegaSummaryEntry(entryName);
       await refreshMegaEntryList(overlay);
       await refreshEntryList(overlay);
       await refreshStatus(overlay);

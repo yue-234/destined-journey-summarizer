@@ -671,6 +671,78 @@ const restoreMegaSummaryToSummaries = errorCatched(async (megaSummaryName) => {
   toastr.success(`已恢复大总结「${megaSummaryName}」的原始总结条目`);
 });
 
+const deactivateMegaSummaryEntry = errorCatched(async (megaSummaryName) => {
+  const summaryNames = await getMegaSummaryMapping(megaSummaryName);
+  if (!summaryNames || summaryNames.length === 0) {
+    toastr.warning('未找到该大总结的原始总结条目映射');
+    return;
+  }
+  
+  const wbName = getActiveWorldbookName();
+  if (!wbName) return;
+  
+  await updateWorldbookWith(wbName, (wb) => {
+    const arr = normalizeWorldbookEntries(wb);
+    // 禁用大总结条目
+    const megaEntry = arr.find((e) => e && e.name === megaSummaryName);
+    if (megaEntry) {
+      megaEntry.enabled = false;
+      megaEntry.disable = true;
+    }
+    // 启用对应的总结条目
+    for (const summaryName of summaryNames) {
+      const entry = arr.find((e) => e && e.name === summaryName);
+      if (entry) {
+        entry.enabled = true;
+        entry.disable = false;
+        if ('disabled' in entry) entry.disabled = false;
+      }
+    }
+    return Array.isArray(wb) ? arr : { ...wb, entries: arr };
+  });
+  
+  // 重新排序所有总结条目
+  await reorderAllSummaryEntries();
+  
+  toastr.success(`已关闭大总结「${megaSummaryName}」，原始总结条目已恢复`);
+});
+
+const activateMegaSummaryEntry = errorCatched(async (megaSummaryName) => {
+  const summaryNames = await getMegaSummaryMapping(megaSummaryName);
+  if (!summaryNames || summaryNames.length === 0) {
+    toastr.warning('未找到该大总结的原始总结条目映射');
+    return;
+  }
+  
+  const wbName = getActiveWorldbookName();
+  if (!wbName) return;
+  
+  await updateWorldbookWith(wbName, (wb) => {
+    const arr = normalizeWorldbookEntries(wb);
+    // 启用大总结条目
+    const megaEntry = arr.find((e) => e && e.name === megaSummaryName);
+    if (megaEntry) {
+      megaEntry.enabled = true;
+      megaEntry.disable = false;
+      if ('disabled' in megaEntry) megaEntry.disabled = false;
+    }
+    // 禁用对应的总结条目
+    for (const summaryName of summaryNames) {
+      const entry = arr.find((e) => e && e.name === summaryName);
+      if (entry) {
+        entry.enabled = false;
+        entry.disable = true;
+      }
+    }
+    return Array.isArray(wb) ? arr : { ...wb, entries: arr };
+  });
+  
+  // 重新排序所有大总结条目
+  await reorderAllMegaSummaryEntries();
+  
+  toastr.success(`已启用大总结「${megaSummaryName}」，对应总结条目已禁用`);
+});
+
 const getAllMegaSummaryEntriesForDisplay = errorCatched(async () => {
   const entries = await getWorldbookEntriesSafe();
   return entries

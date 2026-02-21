@@ -194,6 +194,10 @@ const PANEL_STYLES = `
 .sa-btn-primary:hover { background: linear-gradient(135deg, var(--sa-accent2), #9d6fff); box-shadow: 0 4px 18px rgba(108,99,255,0.5); }
 .sa-btn-danger { background: var(--sa-red-dim); border-color: rgba(255,92,122,0.3); color: var(--sa-red); }
 .sa-btn-danger:hover { background: rgba(255,92,122,0.25); border-color: rgba(255,92,122,0.5); color: #ff7a93; }
+.sa-btn-success { background: rgba(0,212,170,0.12); border-color: rgba(0,212,170,0.3); color: #00d4aa; }
+.sa-btn-success:hover { background: rgba(0,212,170,0.22); border-color: rgba(0,212,170,0.5); color: #2ae8c0; }
+.sa-btn-warn { background: rgba(255,193,7,0.12); border-color: rgba(255,193,7,0.3); color: #ffc107; }
+.sa-btn-warn:hover { background: rgba(255,193,7,0.22); border-color: rgba(255,193,7,0.5); color: #ffcd39; }
 .sa-btn-sm { padding: 5px 11px; font-size: 12px; min-height: 28px; }
 
 .sa-checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 12px; }
