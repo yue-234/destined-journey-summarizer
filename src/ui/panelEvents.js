@@ -777,13 +777,17 @@ const bindPanelEvents = (overlay, initialSettings) => {
       if (models && models.length > 0) {
         models.forEach((m) => select.add(new Option(m, m)));
         toastr.success(`获取到 ${models.length} 个模型`);
-        saveAndUpdate({ customApiModel: select.value });
+        // 自动选择第一个模型并触发自动保存
+        if (select.value) {
+          autoSave();
+        }
       } else {
         select.innerHTML = '<option value="">未获取到模型</option>';
         toastr.warning('未获取到任何模型');
       }
     } catch (err) {
       toastr.error(`获取模型列表失败: ${err.message}`);
+      console.error('获取模型列表详细错误:', err);
     }
   });
 

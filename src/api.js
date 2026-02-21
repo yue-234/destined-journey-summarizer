@@ -294,9 +294,20 @@ const fetchModelList = errorCatched(async (apiUrl, apiKey) => {
 
   if (getModelListFn) {
     try {
-      return await getModelListFn(params);
+      const result = await getModelListFn(params);
+      // 验证返回结果是否为有效的模型列表
+      if (result && Array.isArray(result) && result.length > 0) {
+        console.log('Successfully fetched models via getModelList:', result.length);
+        return result;
+      }
+      console.warn('getModelList returned invalid data, falling back to fetch:', result);
     } catch (e) {
       console.warn('Global getModelList failed, falling back to fetch', e);
+      // 如果是明确的错误（如权限问题），不要fallback
+      const status = extractHttpStatus(e);
+      if (status && (status === 401 || status === 403)) {
+        throw new Error(`API认证失败 [HTTP ${status}]: ${e.message || '请检查API密钥'}`);
+      }
     }
   }
 
