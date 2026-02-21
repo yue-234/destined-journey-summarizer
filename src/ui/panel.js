@@ -183,7 +183,7 @@ const buildPanelHtml = (settings) => `
             </div>
           </div>
            <div class="sa-settings-pane" data-sub-pane="tags">
-            <div class="sa-row"><span class="sa-label">提取标签</span><input class="sa-input" id="sa-include-tags" type="text" placeholder="gametxt, summary" value="${escapeHtml(tagsToString(settings.includeTags))}"></div>
+            <div class="sa-row"><span class="sa-label">提取标签</span><input class="sa-input" id="sa-include-tags" type="text" placeholder="tp, gametxt" value="${escapeHtml(tagsToString(settings.includeTags))}"></div>
             <div class="sa-hint">只提取这些标签内的内容发给AI。多个标签用逗号分隔。留空则发送完整消息。</div>
             <div class="sa-row" style="margin-top:12px"><span class="sa-label">排除标签</span><input class="sa-input" id="sa-exclude-tags" type="text" placeholder="think, hidden" value="${escapeHtml(tagsToString(settings.excludeTags))}"></div>
             <div class="sa-hint">排除这些标签内的内容。在提取之前执行。</div>

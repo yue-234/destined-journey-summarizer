@@ -266,7 +266,7 @@ const DEFAULT_SETTINGS = {
   customApiSource: 'openai',
   temperature: 1,
   maxTokens: 32000,
-  includeTags: ['tp', 'gametxt', 'summary'],
+  includeTags: ['tp', 'gametxt'],
   excludeTags: ['think'],
   excludeHtmlComments: true,
   triggerFloorCount: 50,
