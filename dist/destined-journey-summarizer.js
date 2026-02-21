@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-19T23:52:44.674Z
+ * 构建时间: 2026-02-21T12:32:45.337Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -192,8 +192,8 @@ const DEFAULT_SETTINGS = {
   customApiKey: '',
   customApiModel: '',
   customApiSource: 'openai',
-  temperature: 'same_as_preset',
-  maxTokens: 'same_as_preset',
+  temperature: 1,
+  maxTokens: 32000,
   includeTags: ['tp', 'gametxt', 'summary'],
   excludeTags: ['think'],
   triggerFloorCount: 50,
@@ -2020,7 +2020,7 @@ const renderBlocks = (blocks) => {
 const buildPanelHtml = (settings) => `
 <div class="sa-panel">
   <div class="sa-header">
-    <span>命定之诗总结助手 ✨ V2.5</span>
+    <span>命定之诗总结助手 ✨ V2.6</span>
     <button class="sa-close" id="sa-close">&times;</button>
   </div>
   <div class="sa-tabs">
@@ -2130,7 +2130,7 @@ const buildPanelHtml = (settings) => `
     <div class="sa-tab-pane" data-pane="about">
         <div class="sa-about-content">
             <h3>命定之诗总结助手</h3>
-            <p>版本: 2.5</p>
+            <p>版本: 2.6</p>
             <p>作者: Rhys_z_瑞</p>
             <br>
             <p>命定之诗角色卡专用，用于其它卡不保证效果</p>
