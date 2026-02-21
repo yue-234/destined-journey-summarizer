@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T16:33:58.784Z
+ * 构建时间: 2026-02-21T17:03:48.557Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -149,6 +149,7 @@ const DEFAULT_PROMPT_BLOCKS = [
     role: 'user',
     enabled: true,
     leadText: '以下是本次需要总结的聊天内容：',
+    xmlTag: 'chat_content',
   },
   {
     id: 'summary_rules',
@@ -157,7 +158,7 @@ const DEFAULT_PROMPT_BLOCKS = [
     role: 'system',
     content: `<summary_rules>
 ## 提取规则
-- 总结、合并所有聊天消息中的内容
+- 总结、合并所有<chat_content>中的内容
 - 按时间顺序组织，相同时段的内容合并叙述
 - 保留所有关键信息：人物、事件、对话、数值、物品
 - 仅记录/整合已有的信息，禁止添加原文未提及的任何内容
@@ -264,6 +265,7 @@ const DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS = [
     role: 'user',
     enabled: true,
     leadText: '以下是需要整合的多段剧情记录：',
+    xmlTag: 'summary_records',
   },
   {
     id: 'mega_summary_rules',
@@ -272,7 +274,7 @@ const DEFAULT_MEGA_SUMMARY_PROMPT_BLOCKS = [
     role: 'system',
     content: `<mega_summary_rules>
 ## 整合规则
-- 将以上多段剧情记录按时间线合并为一份连贯记录
+- 将<summary_records>中的多段剧情记录按时间线合并为一份连贯记录
 - 相同日期、地点、时间段的内容合并叙述，去除重复和冗余
 - 保留所有关键信息：人物、事件、对话、数值、物品、关系变化
 - 仅记录/整合已有的信息，禁止添加原文未提及的任何内容
@@ -856,10 +858,11 @@ const callSummaryApi = errorCatched(
         case BLOCK_TYPES.CHAT_MESSAGES: {
           if (mergedChatText && mergedChatText.trim()) {
             const lead = block.leadText || '以下是本次需要总结的聊天内容：';
+            const xmlTag = block.xmlTag || 'chat_content';
             orderedPrompts.push({
               role: block.role || 'user',
               content: wrapContent(
-                `${lead}\n\n${mergedChatText}`
+                `${lead}\n<${xmlTag}>\n${mergedChatText}\n</${xmlTag}>`
               ),
             });
           }
@@ -990,10 +993,11 @@ const callMegaSummaryApi = errorCatched(
         case BLOCK_TYPES.CHAT_MESSAGES: {
           if (mergedSummaryText && mergedSummaryText.trim()) {
             const lead = block.leadText || '以下是需要进行大总结的总结条目内容：';
+            const xmlTag = block.xmlTag || 'summary_records';
             orderedPrompts.push({
               role: block.role || 'user',
               content: wrapContent(
-                `${lead}\n\n${mergedSummaryText}`
+                `${lead}\n<${xmlTag}>\n${mergedSummaryText}\n</${xmlTag}>`
               ),
             });
           }
