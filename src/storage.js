@@ -20,6 +20,14 @@ const cloneSettings = (settings) => ({
 });
 
 const migrateOldSettings = (raw) => {
+  // 迁移 temperature 和 maxTokens 的默认值（v2.6+）
+  if (raw.temperature === 'same_as_preset') {
+    raw.temperature = 1;
+  }
+  if (raw.maxTokens === 'same_as_preset') {
+    raw.maxTokens = 32000;
+  }
+  
   if (Array.isArray(raw.promptBlocks) && raw.promptBlocks.length > 0) return raw;
   const blocks = DEFAULT_PROMPT_BLOCKS.map((b) => ({ ...b }));
   for (const block of blocks) {
