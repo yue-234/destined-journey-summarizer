@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T15:38:16.366Z
+ * 构建时间: 2026-02-21T16:16:12.497Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -914,24 +914,39 @@ const callSummaryApi = errorCatched(
       Object.assign(headers, stHeaders);
     }
 
-    const response = await fetch('/api/generate', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(config),
-    });
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Generation failed (${response.status}): ${errText}`);
+    // 创建 AbortController 用于超时控制
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5分钟超时
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(config),
+        keepalive: true, // 启用保活机制
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Generation failed (${response.status}): ${errText}`);
+      }
+      const resultData = await response.json();
+      if (
+        resultData &&
+        Array.isArray(resultData.results) &&
+        resultData.results.length > 0
+      ) {
+        return String(resultData.results[0].text).trim();
+      }
+      return '';
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('API请求超时（5分钟），请检查网络连接或增加超时时间');
+      }
+      throw error;
     }
-    const resultData = await response.json();
-    if (
-      resultData &&
-      Array.isArray(resultData.results) &&
-      resultData.results.length > 0
-    ) {
-      return String(resultData.results[0].text).trim();
-    }
-    return '';
   }
 );
 
@@ -1023,24 +1038,39 @@ const callMegaSummaryApi = errorCatched(
       Object.assign(headers, stHeaders);
     }
 
-    const response = await fetch('/api/generate', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(config),
-    });
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Generation failed (${response.status}): ${errText}`);
+    // 创建 AbortController 用于超时控制
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5分钟超时
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(config),
+        keepalive: true, // 启用保活机制
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Generation failed (${response.status}): ${errText}`);
+      }
+      const resultData = await response.json();
+      if (
+        resultData &&
+        Array.isArray(resultData.results) &&
+        resultData.results.length > 0
+      ) {
+        return String(resultData.results[0].text).trim();
+      }
+      return '';
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('API请求超时（5分钟），请检查网络连接或增加超时时间');
+      }
+      throw error;
     }
-    const resultData = await response.json();
-    if (
-      resultData &&
-      Array.isArray(resultData.results) &&
-      resultData.results.length > 0
-    ) {
-      return String(resultData.results[0].text).trim();
-    }
-    return '';
   }
 );
 
