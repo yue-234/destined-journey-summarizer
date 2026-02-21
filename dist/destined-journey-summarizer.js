@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.5 - 合并后的单文件脚本
  * 
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T17:03:48.557Z
+ * 构建时间: 2026-02-21T17:20:19.501Z
  * 
  * @author Rhys_z_瑞
  * @version 2.5.0
@@ -352,6 +352,7 @@ const DEFAULT_SETTINGS = {
   maxTokens: 32000,
   includeTags: ['tp', 'gametxt', 'summary'],
   excludeTags: ['think'],
+  excludeHtmlComments: true,
   triggerFloorCount: 50,
   keepFloorCount: 10,
   includeOldSummary: true,
@@ -751,10 +752,18 @@ const excludeTagContent = (text, tagNames) => {
   return result.trim();
 };
 
-const processMessagesByTags = (messages, includeTags, excludeTags) => {
+const removeHtmlComments = (text) => {
+  if (!text) return text || '';
+  return text.replace(/<!--[\s\S]*?-->/g, '').trim();
+};
+
+const processMessagesByTags = (messages, includeTags, excludeTags, excludeHtmlComments) => {
   const results = [];
   for (const msg of messages) {
     let content = msg.message || '';
+    if (excludeHtmlComments) {
+      content = removeHtmlComments(content);
+    }
     if (excludeTags && excludeTags.length > 0) {
       content = excludeTagContent(content, excludeTags);
     }
@@ -1930,7 +1939,7 @@ const getMegaSummaryContentsBefore = errorCatched(async (entryName) => {
 const buildSummaryPromptParams = errorCatched(async (startFloor, endFloor) => {
   const settings = getSettings();
   const rawMsgs = await getRawMessages(startFloor, endFloor);
-  const processed = processMessagesByTags(rawMsgs, settings.includeTags, settings.excludeTags);
+  const processed = processMessagesByTags(rawMsgs, settings.includeTags, settings.excludeTags, settings.excludeHtmlComments);
   if (processed.length === 0) {
     throw new Error(`楼层 ${startFloor}-${endFloor} 中没有提取到任何有效内容`);
   }
@@ -1965,7 +1974,7 @@ const buildRegeneratePromptParams = errorCatched(async (entryName) => {
   const lastId = getLastMessageId();
   const actualEnd = Math.min(end, lastId);
   const rawMsgs = await getRawMessages(start, actualEnd);
-  const processed = processMessagesByTags(rawMsgs, settings.includeTags, settings.excludeTags);
+  const processed = processMessagesByTags(rawMsgs, settings.includeTags, settings.excludeTags, settings.excludeHtmlComments);
   if (processed.length === 0) {
     throw new Error(`楼层 ${start}-${actualEnd} 中没有提取到任何有效内容`);
   }
@@ -3032,6 +3041,10 @@ const buildPanelHtml = (settings) => `
             <div class="sa-hint">只提取这些标签内的内容发给AI。多个标签用逗号分隔。留空则发送完整消息。</div>
             <div class="sa-row" style="margin-top:12px"><span class="sa-label">排除标签</span><input class="sa-input" id="sa-exclude-tags" type="text" placeholder="think, hidden" value="${escapeHtml(tagsToString(settings.excludeTags))}"></div>
             <div class="sa-hint">排除这些标签内的内容。在提取之前执行。</div>
+            <div class="sa-row" style="margin-top:12px">
+              <label><input type="checkbox" id="sa-exclude-html-comments" ${settings.excludeHtmlComments !== false ? 'checked' : ''}> 隐藏HTML注释 (&lt;!-- ... --&gt;)</label>
+            </div>
+            <div class="sa-hint">隐藏消息中被 &lt;!-- 和 --&gt; 包裹的内容。</div>
           </div>
           <div class="sa-settings-pane" data-sub-pane="visibility">
             <div class="sa-row sa-row-pair">
@@ -3210,6 +3223,7 @@ const collectSettingsFromPanel = (overlay) => {
     maxTokens: val('sa-max-tokens') || 'same_as_preset',
     includeTags: parseTagString(val('sa-include-tags')),
     excludeTags: parseTagString(val('sa-exclude-tags')),
+    excludeHtmlComments: checked('sa-exclude-html-comments'),
     promptBlocks: collectBlocksFromPanel(overlay, '#sa-blocks-container'),
     megaPromptBlocks: collectBlocksFromPanel(overlay, '#sa-mega-blocks-container'),
   };
