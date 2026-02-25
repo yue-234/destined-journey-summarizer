@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.7 - 合并后的单文件脚本
  *
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-21T17:39:34.926Z
+ * 构建时间: 2026-02-25T20:05:24.324Z
  *
  * @author Rhys_z_瑞
  * @version 2.7.0
@@ -1602,9 +1602,15 @@ const getLastSummarizedFloor = errorCatched(async () => {
   let max = -1;
   for (const e of entries) {
     if (!e || isEntryDisabled(e)) continue;
+    // 检查普通总结条目
     const parsed = parseSummaryEntryName(e.name);
     if (parsed && parsed.end > max) {
       max = parsed.end;
+    }
+    // 同时检查大总结条目（大总结启用后，其对应的普通总结条目会被禁用）
+    const megaParsed = parseMegaSummaryEntryName(e.name);
+    if (megaParsed && megaParsed.end > max) {
+      max = megaParsed.end;
     }
   }
   return max;
