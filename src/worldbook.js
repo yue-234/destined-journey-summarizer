@@ -451,9 +451,15 @@ const getLastSummarizedFloor = errorCatched(async () => {
   let max = -1;
   for (const e of entries) {
     if (!e || isEntryDisabled(e)) continue;
+    // 检查普通总结条目
     const parsed = parseSummaryEntryName(e.name);
     if (parsed && parsed.end > max) {
       max = parsed.end;
+    }
+    // 同时检查大总结条目（大总结启用后，其对应的普通总结条目会被禁用）
+    const megaParsed = parseMegaSummaryEntryName(e.name);
+    if (megaParsed && megaParsed.end > max) {
+      max = megaParsed.end;
     }
   }
   return max;
