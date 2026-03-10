@@ -254,7 +254,6 @@ const isEntryDisabled = (e) => {
 
 const applyEntryDepthAndOrder = (entry, order) => {
   if (!entry || typeof entry !== 'object') return;
-  entry.enabled = true;
   entry.strategy = {
     ...(entry.strategy && typeof entry.strategy === 'object' ? entry.strategy : {}),
     type: 'constant',
@@ -268,8 +267,6 @@ const applyEntryDepthAndOrder = (entry, order) => {
     depth: CONFIG.ENTRY_DEPTH,
     order,
   };
-  entry.disable = false;
-  if ('disabled' in entry) entry.disabled = false;
 };
 
 const buildSummarizedFloorSet = (entries, lastId) => {
@@ -277,7 +274,10 @@ const buildSummarizedFloorSet = (entries, lastId) => {
   if (!Array.isArray(entries) || lastId < 0) return set;
   for (const e of entries) {
     if (!e || isEntryDisabled(e)) continue;
-    const parsed = parseSummaryEntryName(e.name);
+    let parsed = parseSummaryEntryName(e.name);
+    if (!parsed) {
+      parsed = parseMegaSummaryEntryName(e.name);
+    }
     if (!parsed) continue;
     const start = Math.max(0, parsed.start);
     const end = Math.min(lastId, parsed.end);
@@ -293,7 +293,7 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
   const shouldAutoHide = settings.autoHideSummarizedFloors !== false;
   const lastId = getLastMessageId();
   if (lastId < 0) return;
-  const entries = await getAllSummaryEntriesForDisplay();
+  const entries = await getWorldbookEntriesSafe();
   const summarizedSet = buildSummarizedFloorSet(entries, lastId);
   let maxSummarizedFloor = -1;
   for (const id of summarizedSet) {
@@ -387,6 +387,9 @@ const upsertSummaryEntryByName = errorCatched(async (entryName, content) => {
       const target = arr.find((e) => e && e.name === entryName);
       if (target) {
         target.content = content;
+        target.enabled = true;
+        target.disable = false;
+        if ('disabled' in target) target.disabled = false;
         applyEntryDepthAndOrder(target, order);
       }
       return Array.isArray(wb) ? arr : { ...wb, entries: arr };
@@ -604,7 +607,6 @@ const reorderAllMegaSummaryEntries = errorCatched(async () => {
     megaEntries.forEach((megaEntry, idx) => {
       const target = arr.find((e) => e && e.name === megaEntry.name);
       if (target) {
-        target.enabled = true;
         target.strategy = {
           ...(target.strategy && typeof target.strategy === 'object' ? target.strategy : {}),
           type: 'constant',
@@ -618,8 +620,6 @@ const reorderAllMegaSummaryEntries = errorCatched(async () => {
           depth: CONFIG.MEGA_SUMMARY_DEPTH,
           order: idx + 1,
         };
-        target.disable = false;
-        if ('disabled' in target) target.disabled = false;
       }
     });
     return Array.isArray(wb) ? arr : { ...wb, entries: arr };

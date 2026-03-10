@@ -7,11 +7,11 @@ const CONFIG = {
   MAIN_BUTTON_NAME: '总结设置',
   WORLDBOOK_NAME_PREFIX: '命定之诗总结世界书',
   ENTRY_START_ORDER: 100,
-  ENTRY_DEPTH: 9999,
+  ENTRY_DEPTH: 9998,
   ENTRY_ROLE: 'system',
   SETTINGS_VAR_KEY: 'summary_assistant_settings',
   CHAT_WB_VAR_KEY: 'summary_assistant_worldbook',
-  MEGA_SUMMARY_DEPTH: 99999,
+  MEGA_SUMMARY_DEPTH: 9999,
   MEGA_SUMMARY_VAR_KEY: 'summary_assistant_mega_summary_map',
 };
 

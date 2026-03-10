@@ -15,8 +15,10 @@ const buildCustomApiConfig = (settings) => {
     source: settings.customApiSource || 'openai',
   };
   if (settings.customApiKey) config.key = settings.customApiKey;
-  if (settings.temperature !== 'same_as_preset') config.temperature = settings.temperature;
-  if (settings.maxTokens !== 'same_as_preset') config.max_tokens = settings.maxTokens;
+  if (settings.temperature !== 'same_as_preset')
+    config.temperature = Number(settings.temperature);
+  if (settings.maxTokens !== 'same_as_preset')
+    config.max_tokens = Number(settings.maxTokens);
   return config;
 };
 
@@ -97,14 +99,9 @@ const callSummaryApi = errorCatched(
         const result = await generateRawFn(config);
         return result ? String(result).trim() : '';
       } catch (e) {
-        // 提取 HTTP 状态码并增强错误信息
         const status = extractHttpStatus(e);
         const statusInfo = status ? ` [HTTP ${status}]` : '';
-        console.warn(`Global generateRaw failed${statusInfo}, trying fetch fallback`, e);
-        // 如果是明确的 HTTP 错误（4xx/5xx），直接抛出而非 fallback
-        if (status && status >= 400) {
-          throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
-        }
+        throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
       }
     }
 
@@ -222,14 +219,9 @@ const callMegaSummaryApi = errorCatched(
         const result = await generateRawFn(config);
         return result ? String(result).trim() : '';
       } catch (e) {
-        // 提取 HTTP 状态码并增强错误信息
         const status = extractHttpStatus(e);
         const statusInfo = status ? ` [HTTP ${status}]` : '';
-        console.warn(`Global generateRaw failed${statusInfo}, trying fetch fallback`, e);
-        // 如果是明确的 HTTP 错误（4xx/5xx），直接抛出而非 fallback
-        if (status && status >= 400) {
-          throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
-        }
+        throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
       }
     }
 
