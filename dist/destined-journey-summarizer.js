@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.7 - 合并后的单文件脚本
  *
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-02-25T20:05:24.324Z
+ * 构建时间: 2026-03-10T03:09:14.712Z
  *
  * @author Rhys_z_瑞
  * @version 2.7.0
@@ -91,11 +91,11 @@ const CONFIG = {
   MAIN_BUTTON_NAME: '总结设置',
   WORLDBOOK_NAME_PREFIX: '命定之诗总结世界书',
   ENTRY_START_ORDER: 100,
-  ENTRY_DEPTH: 9999,
+  ENTRY_DEPTH: 9998,
   ENTRY_ROLE: 'system',
   SETTINGS_VAR_KEY: 'summary_assistant_settings',
   CHAT_WB_VAR_KEY: 'summary_assistant_worldbook',
-  MEGA_SUMMARY_DEPTH: 99999,
+  MEGA_SUMMARY_DEPTH: 9999,
   MEGA_SUMMARY_VAR_KEY: 'summary_assistant_mega_summary_map',
 };
 
@@ -822,8 +822,10 @@ const buildCustomApiConfig = (settings) => {
     source: settings.customApiSource || 'openai',
   };
   if (settings.customApiKey) config.key = settings.customApiKey;
-  if (settings.temperature !== 'same_as_preset') config.temperature = settings.temperature;
-  if (settings.maxTokens !== 'same_as_preset') config.max_tokens = settings.maxTokens;
+  if (settings.temperature !== 'same_as_preset')
+    config.temperature = Number(settings.temperature);
+  if (settings.maxTokens !== 'same_as_preset')
+    config.max_tokens = Number(settings.maxTokens);
   return config;
 };
 
@@ -904,14 +906,9 @@ const callSummaryApi = errorCatched(
         const result = await generateRawFn(config);
         return result ? String(result).trim() : '';
       } catch (e) {
-        // 提取 HTTP 状态码并增强错误信息
         const status = extractHttpStatus(e);
         const statusInfo = status ? ` [HTTP ${status}]` : '';
-        console.warn(`Global generateRaw failed${statusInfo}, trying fetch fallback`, e);
-        // 如果是明确的 HTTP 错误（4xx/5xx），直接抛出而非 fallback
-        if (status && status >= 400) {
-          throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
-        }
+        throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
       }
     }
 
@@ -1029,14 +1026,9 @@ const callMegaSummaryApi = errorCatched(
         const result = await generateRawFn(config);
         return result ? String(result).trim() : '';
       } catch (e) {
-        // 提取 HTTP 状态码并增强错误信息
         const status = extractHttpStatus(e);
         const statusInfo = status ? ` [HTTP ${status}]` : '';
-        console.warn(`Global generateRaw failed${statusInfo}, trying fetch fallback`, e);
-        // 如果是明确的 HTTP 错误（4xx/5xx），直接抛出而非 fallback
-        if (status && status >= 400) {
-          throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
-        }
+        throw new Error(`API请求失败${statusInfo}: ${e.message || '未知错误'}`);
       }
     }
 
@@ -1405,7 +1397,6 @@ const isEntryDisabled = (e) => {
 
 const applyEntryDepthAndOrder = (entry, order) => {
   if (!entry || typeof entry !== 'object') return;
-  entry.enabled = true;
   entry.strategy = {
     ...(entry.strategy && typeof entry.strategy === 'object' ? entry.strategy : {}),
     type: 'constant',
@@ -1419,8 +1410,6 @@ const applyEntryDepthAndOrder = (entry, order) => {
     depth: CONFIG.ENTRY_DEPTH,
     order,
   };
-  entry.disable = false;
-  if ('disabled' in entry) entry.disabled = false;
 };
 
 const buildSummarizedFloorSet = (entries, lastId) => {
@@ -1428,7 +1417,10 @@ const buildSummarizedFloorSet = (entries, lastId) => {
   if (!Array.isArray(entries) || lastId < 0) return set;
   for (const e of entries) {
     if (!e || isEntryDisabled(e)) continue;
-    const parsed = parseSummaryEntryName(e.name);
+    let parsed = parseSummaryEntryName(e.name);
+    if (!parsed) {
+      parsed = parseMegaSummaryEntryName(e.name);
+    }
     if (!parsed) continue;
     const start = Math.max(0, parsed.start);
     const end = Math.min(lastId, parsed.end);
@@ -1444,7 +1436,7 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
   const shouldAutoHide = settings.autoHideSummarizedFloors !== false;
   const lastId = getLastMessageId();
   if (lastId < 0) return;
-  const entries = await getAllSummaryEntriesForDisplay();
+  const entries = await getWorldbookEntriesSafe();
   const summarizedSet = buildSummarizedFloorSet(entries, lastId);
   let maxSummarizedFloor = -1;
   for (const id of summarizedSet) {
@@ -1538,6 +1530,9 @@ const upsertSummaryEntryByName = errorCatched(async (entryName, content) => {
       const target = arr.find((e) => e && e.name === entryName);
       if (target) {
         target.content = content;
+        target.enabled = true;
+        target.disable = false;
+        if ('disabled' in target) target.disabled = false;
         applyEntryDepthAndOrder(target, order);
       }
       return Array.isArray(wb) ? arr : { ...wb, entries: arr };
@@ -1755,7 +1750,6 @@ const reorderAllMegaSummaryEntries = errorCatched(async () => {
     megaEntries.forEach((megaEntry, idx) => {
       const target = arr.find((e) => e && e.name === megaEntry.name);
       if (target) {
-        target.enabled = true;
         target.strategy = {
           ...(target.strategy && typeof target.strategy === 'object' ? target.strategy : {}),
           type: 'constant',
@@ -1769,8 +1763,6 @@ const reorderAllMegaSummaryEntries = errorCatched(async () => {
           depth: CONFIG.MEGA_SUMMARY_DEPTH,
           order: idx + 1,
         };
-        target.disable = false;
-        if ('disabled' in target) target.disabled = false;
       }
     });
     return Array.isArray(wb) ? arr : { ...wb, entries: arr };
