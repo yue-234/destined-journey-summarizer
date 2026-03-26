@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.7 - 合并后的单文件脚本
  *
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-03-26T10:32:13.679Z
+ * 构建时间: 2026-03-26T10:40:24.418Z
  *
  * @author Rhys_z_瑞
  * @version 2.7.0
@@ -811,6 +811,23 @@ const getRawChatTextForScan = errorCatched(async (startFloor, endFloor) => {
  * 依赖: config.js, storage.js, messages.js, errorHandler.js
  */
 
+const parseOptionalNumberSetting = (value, fieldLabel) => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+
+  const normalized = String(value).trim();
+  if (!normalized || normalized === 'same_as_preset') return undefined;
+
+  const unquoted = normalized.replace(/^(["'])(.*)\1$/, '$2').trim();
+  if (!unquoted || unquoted === 'same_as_preset') return undefined;
+
+  const parsed = Number(unquoted);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${fieldLabel} 必须是数字或 same_as_preset`);
+  }
+  return parsed;
+};
+
 const buildCustomApiConfig = (settings) => {
   if (settings.apiMode !== 'custom') return undefined;
   if (!settings.customApiUrl || !settings.customApiModel) {
@@ -821,11 +838,11 @@ const buildCustomApiConfig = (settings) => {
     model: settings.customApiModel,
     source: settings.customApiSource || 'openai',
   };
+  const temperature = parseOptionalNumberSetting(settings.temperature, '温度');
+  const maxTokens = parseOptionalNumberSetting(settings.maxTokens, '最大Tokens');
   if (settings.customApiKey) config.key = settings.customApiKey;
-  if (settings.temperature !== 'same_as_preset')
-    config.temperature = Number(settings.temperature);
-  if (settings.maxTokens !== 'same_as_preset')
-    config.max_tokens = Number(settings.maxTokens);
+  if (temperature !== undefined) config.temperature = temperature;
+  if (maxTokens !== undefined) config.max_tokens = maxTokens;
   return config;
 };
 
