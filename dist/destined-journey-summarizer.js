@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.7 - 合并后的单文件脚本
  *
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-03-26T10:40:24.418Z
+ * 构建时间: 2026-03-26T10:59:18.709Z
  *
  * @author Rhys_z_瑞
  * @version 2.7.0
@@ -1452,7 +1452,7 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
   const settings = getSettings();
   const shouldAutoHide = settings.autoHideSummarizedFloors !== false;
   const lastId = getLastMessageId();
-  if (lastId < 0) return;
+  if (lastId < 0) return false;
   const entries = await getWorldbookEntriesSafe();
   const summarizedSet = buildSummarizedFloorSet(entries, lastId);
   let maxSummarizedFloor = -1;
@@ -1487,13 +1487,14 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
       updates.push({ message_id: id, is_hidden: false });
     }
   }
-  if (updates.length === 0) return;
+  if (updates.length === 0) return false;
   for (let i = 0; i < updates.length; i += VISIBILITY_CHUNK_SIZE) {
     const isLast = i + VISIBILITY_CHUNK_SIZE >= updates.length;
     await setChatMessages(updates.slice(i, i + VISIBILITY_CHUNK_SIZE), {
-      refresh: isLast ? 'debounced' : 'none',
+      refresh: isLast ? 'immediate' : 'none',
     });
   }
+  return true;
 });
 
 // ---- 条目排序与写入 ----
