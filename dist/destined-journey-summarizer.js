@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.7 - 合并后的单文件脚本
  *
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-03-26T10:59:18.709Z
+ * 构建时间: 2026-03-26T11:05:15.839Z
  *
  * @author Rhys_z_瑞
  * @version 2.7.0
@@ -3934,7 +3934,7 @@ const bindPanelEvents = (overlay, initialSettings) => {
     for (let i = 0; i < updates.length; i += CHUNK) {
       const isLast = i + CHUNK >= updates.length;
       await setChatMessages(updates.slice(i, i + CHUNK), {
-        refresh: isLast ? 'debounced' : 'none',
+        refresh: isLast ? 'immediate' : 'none',
       });
     }
     return updates.length;
