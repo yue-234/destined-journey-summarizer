@@ -331,7 +331,7 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
   for (let i = 0; i < updates.length; i += VISIBILITY_CHUNK_SIZE) {
     const isLast = i + VISIBILITY_CHUNK_SIZE >= updates.length;
     await setChatMessages(updates.slice(i, i + VISIBILITY_CHUNK_SIZE), {
-      refresh: isLast ? 'immediate' : 'none',
+      refresh: isLast ? 'all' : 'none',
     });
   }
   return true;
