@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.7 - 合并后的单文件脚本
  *
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-03-26T11:05:15.839Z
+ * 构建时间: 2026-03-26T11:12:38.920Z
  *
  * @author Rhys_z_瑞
  * @version 2.7.0
@@ -1491,7 +1491,7 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
   for (let i = 0; i < updates.length; i += VISIBILITY_CHUNK_SIZE) {
     const isLast = i + VISIBILITY_CHUNK_SIZE >= updates.length;
     await setChatMessages(updates.slice(i, i + VISIBILITY_CHUNK_SIZE), {
-      refresh: isLast ? 'immediate' : 'none',
+      refresh: isLast ? 'all' : 'none',
     });
   }
   return true;
@@ -3934,7 +3934,7 @@ const bindPanelEvents = (overlay, initialSettings) => {
     for (let i = 0; i < updates.length; i += CHUNK) {
       const isLast = i + CHUNK >= updates.length;
       await setChatMessages(updates.slice(i, i + CHUNK), {
-        refresh: isLast ? 'immediate' : 'none',
+        refresh: isLast ? 'all' : 'none',
       });
     }
     return updates.length;
