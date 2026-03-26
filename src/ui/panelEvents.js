@@ -816,7 +816,7 @@ const bindPanelEvents = (overlay, initialSettings) => {
     for (let i = 0; i < updates.length; i += CHUNK) {
       const isLast = i + CHUNK >= updates.length;
       await setChatMessages(updates.slice(i, i + CHUNK), {
-        refresh: isLast ? 'debounced' : 'none',
+        refresh: isLast ? 'immediate' : 'none',
       });
     }
     return updates.length;
