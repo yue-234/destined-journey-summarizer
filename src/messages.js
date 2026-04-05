@@ -5,10 +5,12 @@
  */
 
 const replaceMacros = (text) => {
-  if (!text || typeof text !== 'string') return text || '';
-  const userName = SillyTavern.name1 || 'User';
-  const charName = SillyTavern.name2 || 'Character';
-  return text.replace(/\{\{user\}\}/gi, userName).replace(/\{\{char\}\}/gi, charName);
+  if (!text || typeof text !== "string") return text || "";
+  const userName = SillyTavern.name1 || "User";
+  const charName = SillyTavern.name2 || "Character";
+  return text
+    .replace(/\{\{user\}\}/gi, userName)
+    .replace(/\{\{char\}\}/gi, charName);
 };
 
 const getRawMessages = errorCatched(async (startFloor, endFloor) => {
@@ -18,8 +20,8 @@ const getRawMessages = errorCatched(async (startFloor, endFloor) => {
   const e = Math.min(lastId, endFloor);
   if (s > e) return [];
   const msgs = getChatMessages(`${s}-${e}`, {
-    role: 'all',
-    hide_state: 'all',
+    role: "all",
+    hide_state: "all",
     include_swipes: false,
   });
   return msgs.map((m) => ({
@@ -37,14 +39,14 @@ const getAllRawMessages = errorCatched(async () => {
 });
 
 const extractTagContent = (text, tagNames) => {
-  if (!text || !tagNames || tagNames.length === 0) return text || '';
+  if (!text || !tagNames || tagNames.length === 0) return text || "";
   const results = [];
   for (const tag of tagNames) {
     const tagClean = tag.trim();
     if (!tagClean) continue;
     const regex = new RegExp(
       `<${escapeRegex(tagClean)}>(.*?)</${escapeRegex(tagClean)}>`,
-      'gs'
+      "gs",
     );
     let match;
     while ((match = regex.exec(text)) !== null) {
@@ -52,11 +54,11 @@ const extractTagContent = (text, tagNames) => {
       if (content) results.push(content);
     }
   }
-  return results.join('\n');
+  return results.join("\n");
 };
 
 const excludeTagContent = (text, tagNames) => {
-  if (!text || !tagNames || tagNames.length === 0) return text || '';
+  if (!text || !tagNames || tagNames.length === 0) return text || "";
   let result = text;
   for (const tag of tagNames) {
     const tagClean = tag.trim();
@@ -66,7 +68,7 @@ const excludeTagContent = (text, tagNames) => {
     let closingIdx = result.indexOf(closingTagStr);
     while (closingIdx !== -1) {
       const before = result.substring(0, closingIdx);
-      const openRegex = new RegExp(`<${escapedTag}(?:[\\s>])`, 'i');
+      const openRegex = new RegExp(`<${escapedTag}(?:[\\s>])`, "i");
       if (!openRegex.test(before)) {
         result = result.substring(closingIdx + closingTagStr.length);
         closingIdx = result.indexOf(closingTagStr);
@@ -76,29 +78,34 @@ const excludeTagContent = (text, tagNames) => {
     }
     const pairedRegex = new RegExp(
       `<${escapedTag}>[\\s\\S]*?</${escapedTag}>`,
-      'g'
+      "g",
     );
-    result = result.replace(pairedRegex, '');
+    result = result.replace(pairedRegex, "");
   }
   return result.trim();
 };
 
 const removeHtmlComments = (text) => {
-  if (!text) return text || '';
-  return text.replace(/<!--[\s\S]*?-->/g, '').trim();
+  if (!text) return text || "";
+  return text.replace(/<!--[\s\S]*?-->/g, "").trim();
 };
 
-const processMessagesByTags = (messages, includeTags, excludeTags, excludeHtmlComments) => {
+const processMessagesByTags = (
+  messages,
+  includeTags,
+  excludeTags,
+  excludeHtmlComments,
+) => {
   const results = [];
   for (const msg of messages) {
-    let content = msg.message || '';
+    let content = msg.message || "";
     if (excludeHtmlComments) {
       content = removeHtmlComments(content);
     }
     if (excludeTags && excludeTags.length > 0) {
       content = excludeTagContent(content, excludeTags);
     }
-    if (includeTags && includeTags.length > 0 && msg.role !== 'user') {
+    if (includeTags && includeTags.length > 0) {
       content = extractTagContent(content, includeTags);
     }
     if (!content.trim()) continue;
@@ -114,20 +121,21 @@ const processMessagesByTags = (messages, includeTags, excludeTags, excludeHtmlCo
 
 const messagesToMergedText = (
   processedMessages,
-  userPrefix = '{{user}}',
-  assistantPrefix = '{{char}}'
+  userPrefix = "{{user}}",
+  assistantPrefix = "{{char}}",
 ) => {
   const resolvedUserPrefix = replaceMacros(userPrefix);
   const resolvedAssistantPrefix = replaceMacros(assistantPrefix);
   const lines = [];
   for (const msg of processedMessages) {
-    const prefix = msg.role === 'user' ? resolvedUserPrefix : resolvedAssistantPrefix;
+    const prefix =
+      msg.role === "user" ? resolvedUserPrefix : resolvedAssistantPrefix;
     lines.push(`${prefix}:\n${msg.content}`);
   }
-  return lines.join('\n\n');
+  return lines.join("\n\n");
 };
 
 const getRawChatTextForScan = errorCatched(async (startFloor, endFloor) => {
   const msgs = await getRawMessages(startFloor, endFloor);
-  return msgs.map((m) => m.message).join('\n');
+  return msgs.map((m) => m.message).join("\n");
 });

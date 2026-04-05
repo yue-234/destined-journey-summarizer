@@ -88,6 +88,40 @@ const showSummaryHintFor = (text, variant = "info", ms = 2800) => {
   }, ms);
 };
 
+// ---- 返回内容校验 ----
+
+const SUMMARY_INVALID_PATTERNS = [
+  /(?:^|\b)(error|invalid request|rate limit|context length exceeded|server error|network error|unauthorized|forbidden)(?:\b|:)/i,
+  /(请求失败|连接失败|服务错误|服务器错误|上下文长度超限|余额不足|未授权|无权限|模型忙)/i,
+];
+
+const SUMMARY_LAZY_PATTERNS = [
+  /(其余省略|类似上文|照旧|同前|以下省略|无需赘述)/i,
+];
+
+const SUMMARY_HEADER_PATTERN =
+  /^---\s*[\r\n]+\d{1,4}-\d{1,2}-\d{1,2}\s+\|\s+.+:\s*$/m;
+
+const validateSummaryContent = (content, { kind = "总结" } = {}) => {
+  const text = typeof content === "string" ? content.trim() : "";
+  if (!text) {
+    return `${kind}未保存：AI没有返回任何有效内容。`;
+  }
+  if (SUMMARY_INVALID_PATTERNS.some((pattern) => pattern.test(text))) {
+    return `${kind}未保存：检测到返回内容包含疑似报错信息。`;
+  }
+  if (SUMMARY_LAZY_PATTERNS.some((pattern) => pattern.test(text))) {
+    return `${kind}未保存：检测到“同前/省略/照旧”类偷懒表达。`;
+  }
+  if (!text.includes("---")) {
+    return `${kind}未保存：缺少 "---" 分段结构。`;
+  }
+  if (!SUMMARY_HEADER_PATTERN.test(text)) {
+    return `${kind}未保存：缺少“日期 | 地点”标题格式。`;
+  }
+  return "";
+};
+
 // ---- 总结计划 ----
 
 const computeSummaryPlan = errorCatched(async () => {
@@ -147,9 +181,10 @@ const executeSummary = errorCatched(
     try {
       const params = await buildSummaryPromptParams(startFloor, endFloor);
       const aiMessage = await callSummaryApi(params);
-      if (!aiMessage) {
-        showSummaryHintFor("总结失败：AI没有返回任何内容。", "error", 3800);
-        toastr.error("AI没有返回任何内容。");
+      const invalidReason = validateSummaryContent(aiMessage, { kind: "总结" });
+      if (invalidReason) {
+        showSummaryHintFor(invalidReason, "error", 4200);
+        toastr.error(invalidReason);
         return;
       }
       let contentToSave = aiMessage;
@@ -211,9 +246,10 @@ const regenerateAndReplaceEntry = errorCatched(async (entryName) => {
   try {
     const params = await buildRegeneratePromptParams(entryName);
     const aiMessage = await callSummaryApi(params);
-    if (!aiMessage) {
-      showSummaryHintFor("重新生成失败：AI没有返回任何内容。", "error", 3800);
-      toastr.error("AI没有返回任何内容。");
+    const invalidReason = validateSummaryContent(aiMessage, { kind: "总结" });
+    if (invalidReason) {
+      showSummaryHintFor(invalidReason, "error", 4200);
+      toastr.error(invalidReason);
       return;
     }
     const result = await SillyTavern.callGenericPopup(
@@ -249,13 +285,14 @@ const autoTriggerSummary = errorCatched(async () => {
   if (settings.autoTriggerConfirm) {
     const confirm = await SillyTavern.callGenericPopup(
       `未总结消息已达 ${plan.unsummarizedCount} 条（触发阈值：${settings.triggerFloorCount}）。\n\n` +
-        `是否开始总结 ${plan.startFloor}-${plan.endFloor} 楼？`,
+        `是否开始总结 ${plan.startFloor}-${plan.endFloor} 楼？\n` +
+        `确认后会在保存前提供结果审查窗口。`,
       SillyTavern.POPUP_TYPE.CONFIRM,
     );
     if (confirm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
   }
   await executeSummary(plan.startFloor, plan.endFloor, plan.entryName, {
-    requireReview: false,
+    requireReview: settings.autoTriggerConfirm,
   });
 });
 
@@ -269,9 +306,12 @@ const executeMegaSummary = errorCatched(
     try {
       const params = await buildMegaSummaryPromptParams(summaryNames);
       const aiMessage = await callMegaSummaryApi(params);
-      if (!aiMessage) {
-        showSummaryHintFor("大总结失败：AI没有返回任何内容。", "error", 3800);
-        toastr.error("AI没有返回任何内容。");
+      const invalidReason = validateSummaryContent(aiMessage, {
+        kind: "大总结",
+      });
+      if (invalidReason) {
+        showSummaryHintFor(invalidReason, "error", 4200);
+        toastr.error(invalidReason);
         return;
       }
       let contentToSave = aiMessage;
@@ -354,9 +394,10 @@ const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
   try {
     const params = await buildRegenerateMegaSummaryPromptParams(entryName);
     const aiMessage = await callMegaSummaryApi(params);
-    if (!aiMessage) {
-      showSummaryHintFor("重新生成失败：AI没有返回任何内容。", "error", 3800);
-      toastr.error("AI没有返回任何内容。");
+    const invalidReason = validateSummaryContent(aiMessage, { kind: "大总结" });
+    if (invalidReason) {
+      showSummaryHintFor(invalidReason, "error", 4200);
+      toastr.error(invalidReason);
       return;
     }
     const result = await SillyTavern.callGenericPopup(
