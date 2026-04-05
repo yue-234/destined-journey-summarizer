@@ -152,6 +152,35 @@ const shouldAutoTrigger = errorCatched(async () => {
 
 // ---- 执行总结 ----
 
+const validateManualSummaryRange = async (startFloor, endFloor) => {
+  const lastId = getLastMessageId();
+  if (lastId < 0) {
+    return { ok: false, message: "聊天为空，无法生成总结。" };
+  }
+  if (!Number.isInteger(startFloor) || !Number.isInteger(endFloor)) {
+    return { ok: false, message: "请输入有效的整数楼层范围。" };
+  }
+  if (startFloor < 0 || endFloor < 0) {
+    return { ok: false, message: "楼层范围不能小于 0。" };
+  }
+  if (startFloor > endFloor) {
+    return { ok: false, message: "起始楼层不能大于结束楼层。" };
+  }
+  if (startFloor > lastId) {
+    return {
+      ok: false,
+      message: `起始楼层超出当前聊天范围（最后一楼=${lastId}）。`,
+    };
+  }
+  if (endFloor > lastId) {
+    return {
+      ok: false,
+      message: `结束楼层超出当前聊天范围（最后一楼=${lastId}）。`,
+    };
+  }
+  return { ok: true, lastId };
+};
+
 const startSummaryProcess = errorCatched(async () => {
   const plan = await computeSummaryPlan();
   if (!plan) {
@@ -169,6 +198,60 @@ const startSummaryProcess = errorCatched(async () => {
   );
   if (confirm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
   await executeSummary(plan.startFloor, plan.endFloor, plan.entryName, {
+    requireReview: true,
+  });
+});
+
+const startCustomRangeSummaryProcess = errorCatched(async () => {
+  const settings = getSettings();
+  const lastId = getLastMessageId();
+  if (lastId < 0) {
+    toastr.warning("聊天为空，无法生成总结。");
+    return;
+  }
+  const lastSummarized = await getLastSummarizedFloor();
+  const suggestedStart = Math.max(0, lastSummarized + 1);
+  const suggestedEnd = Math.max(
+    suggestedStart,
+    lastId - settings.keepFloorCount,
+  );
+  const suggestedRange = `${suggestedStart}-${suggestedEnd}`;
+  const result = await SillyTavern.callGenericPopup(
+    `请输入需要总结的楼层范围（当前最后一楼：${lastId}）。\n\n` +
+      `推荐范围：${suggestedRange}\n` +
+      `格式示例：12-34`,
+    SillyTavern.POPUP_TYPE.INPUT,
+    suggestedRange,
+    {
+      rows: 1,
+      okButton: "下一步",
+      cancelButton: "取消",
+    },
+  );
+  if (typeof result !== "string") return;
+  const match = result.trim().match(/^(\d+)\s*-\s*(\d+)$/);
+  if (!match) {
+    toastr.warning('请输入正确格式的楼层范围，例如 "12-34"。');
+    return;
+  }
+  const startFloor = Number.parseInt(match[1], 10);
+  const endFloor = Number.parseInt(match[2], 10);
+  const validation = await validateManualSummaryRange(startFloor, endFloor);
+  if (!validation.ok) {
+    toastr.error(validation.message);
+    return;
+  }
+  const entryName = makeSummaryEntryName(startFloor, endFloor);
+  const confirm = await SillyTavern.callGenericPopup(
+    `将按指定范围生成总结：\n\n` +
+      `起始楼层：${startFloor}\n` +
+      `结束楼层：${endFloor}\n` +
+      `条目名称：${escapeHtml(entryName)}\n\n` +
+      `继续吗？`,
+    SillyTavern.POPUP_TYPE.CONFIRM,
+  );
+  if (confirm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
+  await executeSummary(startFloor, endFloor, entryName, {
     requireReview: true,
   });
 });
