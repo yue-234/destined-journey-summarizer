@@ -1133,6 +1133,19 @@ const bindPanelEvents = (overlay, initialSettings) => {
       await refreshStatus(overlay);
     });
 
+  // ---- 指定楼层总结 ----
+  overlay
+    .querySelector("#sa-start-custom-summary")
+    .addEventListener("click", async () => {
+      if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+      const newSettings = collectSettingsFromPanel(overlay);
+      await updateSettings(newSettings);
+      await startCustomRangeSummaryProcess();
+      await refreshEntryList(overlay);
+      await refreshMegaEntryList(overlay);
+      await refreshStatus(overlay);
+    });
+
   // ---- 开始大总结 ----
   overlay
     .querySelector("#sa-start-mega-summary")

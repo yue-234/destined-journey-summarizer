@@ -88,6 +88,50 @@ const showSummaryHintFor = (text, variant = "info", ms = 2800) => {
   }, ms);
 };
 
+// ---- 返回内容校验 ----
+
+const stripMarkdownCodeFences = (content) => {
+  const text = typeof content === "string" ? content : "";
+  return text
+    .replace(/^\s*```[^\r\n]*\r?\n?/g, "")
+    .replace(/\r?\n?\s*```\s*$/g, "")
+    .replace(/```/g, "")
+    .trim();
+};
+
+const SUMMARY_INVALID_PATTERNS = [
+  /(?:^|\b)(error|invalid request|rate limit|context length exceeded|server error|network error|unauthorized|forbidden)(?:\b|:)/i,
+  /(请求失败|连接失败|服务错误|服务器错误|上下文长度超限|余额不足|未授权|无权限|模型忙)/i,
+];
+
+const SUMMARY_LAZY_PATTERNS = [
+  /(其余省略|类似上文|照旧|同前|以下省略|无需赘述)/i,
+];
+
+const SUMMARY_HEADER_PATTERN =
+  /^---\s*[\r\n]+\d{1,4}-\d{1,2}-\d{1,2}\s+\|\s+.+:\s*$/m;
+
+const validateSummaryContent = (content, { kind = "总结" } = {}) => {
+  const rawText = typeof content === "string" ? content.trim() : "";
+  const text = stripMarkdownCodeFences(rawText);
+  if (!text) {
+    return `${kind}未保存：AI没有返回任何有效内容。`;
+  }
+  if (SUMMARY_INVALID_PATTERNS.some((pattern) => pattern.test(text))) {
+    return `${kind}未保存：检测到返回内容包含疑似报错信息。`;
+  }
+  if (SUMMARY_LAZY_PATTERNS.some((pattern) => pattern.test(text))) {
+    return `${kind}未保存：检测到“同前/省略/照旧”类偷懒表达。`;
+  }
+  if (!text.includes("---")) {
+    return `${kind}未保存：缺少 "---" 分段结构。`;
+  }
+  if (!SUMMARY_HEADER_PATTERN.test(text)) {
+    return `${kind}未保存：缺少“日期 | 地点”标题格式。`;
+  }
+  return "";
+};
+
 // ---- 总结计划 ----
 
 const computeSummaryPlan = errorCatched(async () => {
@@ -135,17 +179,55 @@ const openSummaryReviewPopup = async (
   return result;
 };
 
+const chooseFailedAutoSummaryAction = async (failureMessage) => {
+  const result = await SillyTavern.callGenericPopup(
+    `${failureMessage}\n\n请选择后续操作：\n` +
+      `1 = 重新总结\n` +
+      `2 = 手动编辑后保存\n` +
+      `0 = 取消`,
+    SillyTavern.POPUP_TYPE.INPUT,
+    "1",
+    {
+      rows: 1,
+      okButton: "确定",
+      cancelButton: "取消",
+    },
+  );
+  if (typeof result !== "string") {
+    return "cancel";
+  }
+  const normalized = result.trim();
+  if (normalized === "1") return "retry";
+  if (normalized === "2") return "review";
+  return "cancel";
+};
+
 const reviewFailedAutoSummary = async (
   entryName,
   initialContent,
   failureMessage,
+  retryFn,
 ) => {
   showSummaryHintFor(
-    `${failureMessage}\n已打开审查窗口，可手动修改后保存。`,
+    `${failureMessage}\n请选择重新总结或手动编辑保存。`,
     "error",
     4200,
   );
   toastr.error(failureMessage);
+  const action = await chooseFailedAutoSummaryAction(failureMessage);
+  if (action === "retry") {
+    if (typeof retryFn === "function") {
+      await retryFn();
+      return;
+    }
+    toastr.warning("当前失败场景不支持重新总结。");
+    return;
+  }
+  if (action === "cancel") {
+    showSummaryHintFor("已取消保存本次自动总结。", "info", 2200);
+    toastr.info("操作已取消。");
+    return;
+  }
   const result = await openSummaryReviewPopup(entryName, initialContent, {
     titlePrefix: "自动总结失败，以下为失败内容/错误信息",
     okButton: "仍然保存",
@@ -155,9 +237,38 @@ const reviewFailedAutoSummary = async (
     toastr.info("操作已取消。");
     return;
   }
-  await upsertSummaryEntryByName(entryName, result);
+  await upsertSummaryEntryByName(entryName, stripMarkdownCodeFences(result));
   showSummaryHintFor(`总结已保存：${entryName}`, "success", 3200);
   toastr.success(`总结已保存：${entryName}`);
+};
+
+const validateManualSummaryRange = async (startFloor, endFloor) => {
+  const lastId = getLastMessageId();
+  if (lastId < 0) {
+    return { ok: false, message: "聊天为空，无法生成总结。" };
+  }
+  if (!Number.isInteger(startFloor) || !Number.isInteger(endFloor)) {
+    return { ok: false, message: "请输入有效的整数楼层范围。" };
+  }
+  if (startFloor < 0 || endFloor < 0) {
+    return { ok: false, message: "楼层范围不能小于 0。" };
+  }
+  if (startFloor > endFloor) {
+    return { ok: false, message: "起始楼层不能大于结束楼层。" };
+  }
+  if (startFloor > lastId) {
+    return {
+      ok: false,
+      message: `起始楼层超出当前聊天范围（最后一楼=${lastId}）。`,
+    };
+  }
+  if (endFloor > lastId) {
+    return {
+      ok: false,
+      message: `结束楼层超出当前聊天范围（最后一楼=${lastId}）。`,
+    };
+  }
+  return { ok: true, lastId };
 };
 
 const startSummaryProcess = errorCatched(async () => {
@@ -181,6 +292,60 @@ const startSummaryProcess = errorCatched(async () => {
   });
 });
 
+const startCustomRangeSummaryProcess = errorCatched(async () => {
+  const settings = getSettings();
+  const lastId = getLastMessageId();
+  if (lastId < 0) {
+    toastr.warning("聊天为空，无法生成总结。");
+    return;
+  }
+  const lastSummarized = await getLastSummarizedFloor();
+  const suggestedStart = Math.max(0, lastSummarized + 1);
+  const suggestedEnd = Math.max(
+    suggestedStart,
+    lastId - settings.keepFloorCount,
+  );
+  const suggestedRange = `${suggestedStart}-${suggestedEnd}`;
+  const result = await SillyTavern.callGenericPopup(
+    `请输入需要总结的楼层范围（当前最后一楼：${lastId}）。\n\n` +
+      `推荐范围：${suggestedRange}\n` +
+      `格式示例：12-34`,
+    SillyTavern.POPUP_TYPE.INPUT,
+    suggestedRange,
+    {
+      rows: 1,
+      okButton: "下一步",
+      cancelButton: "取消",
+    },
+  );
+  if (typeof result !== "string") return;
+  const match = result.trim().match(/^(\d+)\s*-\s*(\d+)$/);
+  if (!match) {
+    toastr.warning('请输入正确格式的楼层范围，例如 "12-34"。');
+    return;
+  }
+  const startFloor = Number.parseInt(match[1], 10);
+  const endFloor = Number.parseInt(match[2], 10);
+  const validation = await validateManualSummaryRange(startFloor, endFloor);
+  if (!validation.ok) {
+    toastr.error(validation.message);
+    return;
+  }
+  const entryName = makeSummaryEntryName(startFloor, endFloor);
+  const confirm = await SillyTavern.callGenericPopup(
+    `将按指定范围生成总结：\n\n` +
+      `起始楼层：${startFloor}\n` +
+      `结束楼层：${endFloor}\n` +
+      `条目名称：${escapeHtml(entryName)}\n\n` +
+      `继续吗？`,
+    SillyTavern.POPUP_TYPE.CONFIRM,
+  );
+  if (confirm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
+  await executeSummary(startFloor, endFloor, entryName, {
+    requireReview: true,
+  });
+});
+
 const executeSummary = errorCatched(
   async (startFloor, endFloor, entryName, { requireReview = false } = {}) => {
     showSummaryHint(
@@ -189,29 +354,27 @@ const executeSummary = errorCatched(
     try {
       const params = await buildSummaryPromptParams(startFloor, endFloor);
       const aiMessage = await callSummaryApi(params);
-      if (!aiMessage) {
-        const failureMessage = "总结失败：AI没有返回任何内容。";
-        if (!requireReview) {
-          await reviewFailedAutoSummary(
-            entryName,
-            "[自动总结失败]\nAI没有返回任何内容，请手动补写或粘贴修正后的总结。",
-            failureMessage,
-          );
-          return;
-        }
-        showSummaryHintFor(failureMessage, "error", 3800);
-        toastr.error("AI没有返回任何内容。");
+      const normalizedAiMessage = stripMarkdownCodeFences(aiMessage);
+      const invalidReason = validateSummaryContent(normalizedAiMessage, {
+        kind: "总结",
+      });
+      if (invalidReason) {
+        showSummaryHintFor(invalidReason, "error", 4200);
+        toastr.error(invalidReason);
         return;
       }
-      let contentToSave = aiMessage;
+      let contentToSave = normalizedAiMessage;
       if (requireReview) {
-        const result = await openSummaryReviewPopup(entryName, aiMessage);
+        const result = await openSummaryReviewPopup(
+          entryName,
+          normalizedAiMessage,
+        );
         if (typeof result !== "string") {
           showSummaryHintFor("已取消保存本次总结。", "info", 2200);
           toastr.info("操作已取消。");
           return;
         }
-        contentToSave = result;
+        contentToSave = stripMarkdownCodeFences(result);
       }
       await upsertSummaryEntryByName(entryName, contentToSave);
       showSummaryHintFor(`总结已生成：${entryName}`, "success", 3200);
@@ -225,6 +388,11 @@ const executeSummary = errorCatched(
           entryName,
           `[自动总结失败]\n${failureMessage}\n\n请在下方手动补写或粘贴修正后的总结内容。`,
           failureMessage,
+          async () => {
+            await executeSummary(startFloor, endFloor, entryName, {
+              requireReview: false,
+            });
+          },
         );
         return;
       }
@@ -266,15 +434,19 @@ const regenerateAndReplaceEntry = errorCatched(async (entryName) => {
   try {
     const params = await buildRegeneratePromptParams(entryName);
     const aiMessage = await callSummaryApi(params);
-    if (!aiMessage) {
-      showSummaryHintFor("重新生成失败：AI没有返回任何内容。", "error", 3800);
-      toastr.error("AI没有返回任何内容。");
+    const normalizedAiMessage = stripMarkdownCodeFences(aiMessage);
+    const invalidReason = validateSummaryContent(normalizedAiMessage, {
+      kind: "总结",
+    });
+    if (invalidReason) {
+      showSummaryHintFor(invalidReason, "error", 4200);
+      toastr.error(invalidReason);
       return;
     }
     const result = await SillyTavern.callGenericPopup(
       `重新生成的总结（${escapeHtml(entryName)}），可在下方编辑：`,
       SillyTavern.POPUP_TYPE.INPUT,
-      aiMessage,
+      normalizedAiMessage,
       { rows: 12, wide: true, okButton: "确定替换", cancelButton: "取消" },
     );
     if (typeof result !== "string") {
@@ -304,13 +476,14 @@ const autoTriggerSummary = errorCatched(async () => {
   if (settings.autoTriggerConfirm) {
     const confirm = await SillyTavern.callGenericPopup(
       `未总结消息已达 ${plan.unsummarizedCount} 条（触发阈值：${settings.triggerFloorCount}）。\n\n` +
-        `是否开始总结 ${plan.startFloor}-${plan.endFloor} 楼？`,
+        `是否开始总结 ${plan.startFloor}-${plan.endFloor} 楼？\n` +
+        `确认后会在保存前提供结果审查窗口。`,
       SillyTavern.POPUP_TYPE.CONFIRM,
     );
     if (confirm !== SillyTavern.POPUP_RESULT.AFFIRMATIVE) return;
   }
   await executeSummary(plan.startFloor, plan.endFloor, plan.entryName, {
-    requireReview: false,
+    requireReview: settings.autoTriggerConfirm,
   });
 });
 
@@ -324,9 +497,12 @@ const executeMegaSummary = errorCatched(
     try {
       const params = await buildMegaSummaryPromptParams(summaryNames);
       const aiMessage = await callMegaSummaryApi(params);
-      if (!aiMessage) {
-        showSummaryHintFor("大总结失败：AI没有返回任何内容。", "error", 3800);
-        toastr.error("AI没有返回任何内容。");
+      const invalidReason = validateSummaryContent(aiMessage, {
+        kind: "大总结",
+      });
+      if (invalidReason) {
+        showSummaryHintFor(invalidReason, "error", 4200);
+        toastr.error(invalidReason);
         return;
       }
       let contentToSave = aiMessage;
@@ -409,9 +585,10 @@ const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
   try {
     const params = await buildRegenerateMegaSummaryPromptParams(entryName);
     const aiMessage = await callMegaSummaryApi(params);
-    if (!aiMessage) {
-      showSummaryHintFor("重新生成失败：AI没有返回任何内容。", "error", 3800);
-      toastr.error("AI没有返回任何内容。");
+    const invalidReason = validateSummaryContent(aiMessage, { kind: "大总结" });
+    if (invalidReason) {
+      showSummaryHintFor(invalidReason, "error", 4200);
+      toastr.error(invalidReason);
       return;
     }
     const result = await SillyTavern.callGenericPopup(
@@ -425,7 +602,11 @@ const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
       toastr.info("操作已取消。");
       return;
     }
-    await upsertMegaSummaryEntry(entryName, result, summaryNames);
+    await upsertMegaSummaryEntry(
+      entryName,
+      stripMarkdownCodeFences(result),
+      summaryNames,
+    );
     showSummaryHintFor(`大总结条目已重新生成：${entryName}`, "success", 3200);
     toastr.success(`已重新生成并替换：${entryName}`);
   } catch (error) {

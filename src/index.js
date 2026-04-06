@@ -16,7 +16,7 @@ eventOn(tavern_events.MESSAGE_RECEIVED, async () => {
     await loadSettings();
     await autoTriggerSummary();
   } catch (e) {
-    console.error('自动触发总结检查失败:', e);
+    console.error("自动触发总结检查失败:", e);
   }
 });
 
@@ -25,7 +25,7 @@ eventOn(tavern_events.CHAT_CHANGED, async () => {
   try {
     await onChatChanged();
   } catch (e) {
-    console.error('聊天切换处理失败:', e);
+    console.error("聊天切换处理失败:", e);
   }
 });
 
@@ -33,9 +33,9 @@ eventOn(tavern_events.CHAT_CHANGED, async () => {
 loadSettings()
   .then(async () => {
     await migrateOldWorldbookName();
-    toastr.success('命定之诗总结助手 (V2.7) 已加载。');
+    toastr.success("命定之诗总结助手 (V2.8.2) 已加载。");
   })
   .catch((e) => {
-    console.warn('初始化加载设置失败:', e);
-    toastr.success('命定之诗总结助手 (V2.7) 已加载（使用默认设置）。');
+    console.warn("初始化加载设置失败:", e);
+    toastr.success("命定之诗总结助手 (V2.8.2) 已加载（使用默认设置）。");
   });
