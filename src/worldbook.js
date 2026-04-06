@@ -488,8 +488,6 @@ const deleteSummaryEntry = errorCatched(async (entryName) => {
     const filtered = arr.filter((e) => e && e.name !== entryName);
     return Array.isArray(wb) ? filtered : { ...wb, entries: filtered };
   });
-  await reorderAllSummaryEntries();
-  await applySummarizedFloorsVisibility();
 });
 
 // ---- 条目查询 ----
@@ -713,8 +711,6 @@ const deleteMegaSummaryEntry = errorCatched(async (entryName) => {
 
   // 重新排序
   await reorderAllMegaSummaryEntries();
-
-  await applySummarizedFloorsVisibility();
 });
 
 const restoreMegaSummaryToSummaries = errorCatched(async (megaSummaryName) => {

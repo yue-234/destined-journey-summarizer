@@ -1127,20 +1127,7 @@ const bindPanelEvents = (overlay, initialSettings) => {
       if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
       const newSettings = collectSettingsFromPanel(overlay);
       await updateSettings(newSettings);
-      overlay._cleanupResize?.();
-      overlay.remove();
-      _panelEl = null;
       await startSummaryProcess();
-    });
-
-  // ---- 指定楼层总结 ----
-  overlay
-    .querySelector("#sa-start-custom-summary")
-    .addEventListener("click", async () => {
-      if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
-      const newSettings = collectSettingsFromPanel(overlay);
-      await updateSettings(newSettings);
-      await startCustomRangeSummaryProcess();
       await refreshEntryList(overlay);
       await refreshMegaEntryList(overlay);
       await refreshStatus(overlay);
