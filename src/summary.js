@@ -99,21 +99,80 @@ const SUMMARY_LAZY_PATTERNS = [
   /(其余省略|类似上文|照旧|同前|以下省略|无需赘述)/i,
 ];
 
-const SUMMARY_HEADER_PATTERN =
-  /^---\s*[\r\n]+\d{1,4}-\d{1,2}-\d{1,2}\s+\|\s+.+:\s*$/m;
+const SUMMARY_HEADER_PATTERN = /^---\s*[\r\n]+[^\r\n:][^\r\n]*:\s*$/m;
+
+const SUMMARY_WRAPPER_LINE_PATTERNS = [
+  /^\s*以下是(?:本次)?(?:总结|整合结果|整合后的记录|记录内容)[：:]\s*$/i,
+  /^\s*(?:总结|整合)(?:如下)?[：:]\s*$/i,
+];
 
 const stripMarkdownCodeFence = (content) => {
-  const text = typeof content === "string" ? content.trim() : "";
+  let text = typeof content === "string" ? content.trim() : "";
   if (!text) return "";
-  const fencedMatch = text.match(/^```[^\r\n]*\r?\n([\s\S]*?)\r?\n```$/);
-  if (fencedMatch) {
-    return fencedMatch[1].trim();
+
+  while (true) {
+    const fencedMatch = text.match(/^```[^\r\n]*\r?\n([\s\S]*?)\r?\n```$/);
+    if (fencedMatch) {
+      text = fencedMatch[1].trim();
+      continue;
+    }
+
+    const lines = text.split(/\r?\n/);
+    if (
+      lines.length >= 3 &&
+      SUMMARY_WRAPPER_LINE_PATTERNS.some((pattern) => pattern.test(lines[0])) &&
+      /^```[^\r\n]*\s*$/.test(lines[1]) &&
+      /^\s*```\s*$/.test(lines[lines.length - 1])
+    ) {
+      text = lines.slice(2, -1).join("\n").trim();
+      continue;
+    }
+
+    break;
   }
+
   return text;
 };
 
+const containsMarkdownCodeFence = (content) => {
+  const text = typeof content === "string" ? content : "";
+  return /(^|\r?\n)\s*```[^\r\n]*\s*(\r?\n|$)/.test(text);
+};
+
+const normalizeSummaryFormatting = (content) => {
+  const text = typeof content === "string" ? content : "";
+  if (!text) return "";
+
+  let normalized = text.replace(
+    /(^|\r?\n)\s*(?:\*\*\*|___)\s*(?=\r?\n|$)/g,
+    "$1---",
+  );
+
+  const lines = normalized.split(/\r?\n/);
+  const firstMeaningfulLineIndex = lines.findIndex((line) => line.trim());
+  if (firstMeaningfulLineIndex >= 0) {
+    const firstMeaningfulLine = lines[firstMeaningfulLineIndex].trim();
+    const previousMeaningfulLine = lines
+      .slice(0, firstMeaningfulLineIndex)
+      .reverse()
+      .find((line) => line.trim());
+
+    const looksLikeHeader = /^[^\r\n:][^\r\n]*:\s*$/.test(firstMeaningfulLine);
+    const hasLeadingSeparator = firstMeaningfulLine === "---";
+    const hasPreviousSeparator =
+      (previousMeaningfulLine || "").trim() === "---";
+
+    if (looksLikeHeader && !hasLeadingSeparator && !hasPreviousSeparator) {
+      lines.splice(firstMeaningfulLineIndex, 0, "---");
+      normalized = lines.join("\n");
+    }
+  }
+
+  return normalized;
+};
+
 const validateSummaryContent = (content, { kind = "总结" } = {}) => {
-  const text = stripMarkdownCodeFence(content);
+  const text = normalizeSummaryFormatting(stripMarkdownCodeFence(content));
   if (!text) {
     return `${kind}未保存：AI没有返回任何有效内容。`;
   }
@@ -123,11 +182,14 @@ const validateSummaryContent = (content, { kind = "总结" } = {}) => {
   if (SUMMARY_LAZY_PATTERNS.some((pattern) => pattern.test(text))) {
     return `${kind}未保存：检测到“同前/省略/照旧”类偷懒表达。`;
   }
+  if (containsMarkdownCodeFence(text)) {
+    return `${kind}未保存：检测到残留的 Markdown 代码块围栏。`;
+  }
   if (!text.includes("---")) {
     return `${kind}未保存：缺少 "---" 分段结构。`;
   }
   if (!SUMMARY_HEADER_PATTERN.test(text)) {
-    return `${kind}未保存：缺少“日期 | 地点”标题格式。`;
+    return `${kind}未保存：缺少有效的分段标题格式。`;
   }
   return "";
 };
@@ -274,7 +336,9 @@ const executeSummary = errorCatched(
     try {
       const params = await buildSummaryPromptParams(startFloor, endFloor);
       const aiMessage = await callSummaryApi(params);
-      const normalizedAiMessage = stripMarkdownCodeFence(aiMessage);
+      const normalizedAiMessage = normalizeSummaryFormatting(
+        stripMarkdownCodeFence(aiMessage),
+      );
       const invalidReason = validateSummaryContent(normalizedAiMessage, {
         kind: "总结",
       });
@@ -342,17 +406,25 @@ const regenerateAndReplaceEntry = errorCatched(async (entryName) => {
   try {
     const params = await buildRegeneratePromptParams(entryName);
     const aiMessage = await callSummaryApi(params);
-    const normalizedAiMessage = stripMarkdownCodeFence(aiMessage);
+    const normalizedAiMessage = normalizeSummaryFormatting(
+      stripMarkdownCodeFence(aiMessage),
+    );
     const invalidReason = validateSummaryContent(normalizedAiMessage, {
       kind: "总结",
     });
     if (invalidReason) {
-      showSummaryHintFor(invalidReason, "error", 4200);
-      toastr.error(invalidReason);
-      return;
+      showSummaryHintFor(
+        `${invalidReason}\n已打开审查窗口，可手动修正后替换保存。`,
+        "error",
+        5200,
+      );
+      toastr.warning(`${invalidReason} 已打开审查窗口，可手动修正后替换保存。`);
     }
+    const reviewMessage = invalidReason
+      ? `重新生成的总结检测到问题（${escapeHtml(invalidReason)}），但仍可在下方手动修正后替换：`
+      : `重新生成的总结（${escapeHtml(entryName)}），可在下方编辑：`;
     const result = await SillyTavern.callGenericPopup(
-      `重新生成的总结（${escapeHtml(entryName)}），可在下方编辑：`,
+      reviewMessage,
       SillyTavern.POPUP_TYPE.INPUT,
       normalizedAiMessage,
       { rows: 12, wide: true, okButton: "确定替换", cancelButton: "取消" },
@@ -405,7 +477,9 @@ const executeMegaSummary = errorCatched(
     try {
       const params = await buildMegaSummaryPromptParams(summaryNames);
       const aiMessage = await callMegaSummaryApi(params);
-      const normalizedAiMessage = stripMarkdownCodeFence(aiMessage);
+      const normalizedAiMessage = normalizeSummaryFormatting(
+        stripMarkdownCodeFence(aiMessage),
+      );
       const invalidReason = validateSummaryContent(normalizedAiMessage, {
         kind: "大总结",
       });
@@ -494,17 +568,25 @@ const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
   try {
     const params = await buildRegenerateMegaSummaryPromptParams(entryName);
     const aiMessage = await callMegaSummaryApi(params);
-    const normalizedAiMessage = stripMarkdownCodeFence(aiMessage);
+    const normalizedAiMessage = normalizeSummaryFormatting(
+      stripMarkdownCodeFence(aiMessage),
+    );
     const invalidReason = validateSummaryContent(normalizedAiMessage, {
       kind: "大总结",
     });
     if (invalidReason) {
-      showSummaryHintFor(invalidReason, "error", 4200);
-      toastr.error(invalidReason);
-      return;
+      showSummaryHintFor(
+        `${invalidReason}\n已打开审查窗口，可手动修正后替换保存。`,
+        "error",
+        5200,
+      );
+      toastr.warning(`${invalidReason} 已打开审查窗口，可手动修正后替换保存。`);
     }
+    const reviewMessage = invalidReason
+      ? `重新生成的大总结检测到问题（${escapeHtml(invalidReason)}），但仍可在下方手动修正后替换：`
+      : `重新生成的大总结（${escapeHtml(entryName)}），可在下方编辑：`;
     const result = await SillyTavern.callGenericPopup(
-      `重新生成的大总结（${escapeHtml(entryName)}），可在下方编辑：`,
+      reviewMessage,
       SillyTavern.POPUP_TYPE.INPUT,
       normalizedAiMessage,
       { rows: 12, wide: true, okButton: "确定替换", cancelButton: "取消" },

@@ -348,6 +348,7 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
     if (id > maxSummarizedFloor) maxSummarizedFloor = id;
   }
   const updates = [];
+  const seenMessageIds = new Set();
   if (shouldAutoHide && maxSummarizedFloor >= 0) {
     const msgs = getChatMessages(`0-${maxSummarizedFloor}`, {
       role: "all",
@@ -357,10 +358,24 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
     for (const msg of msgs) {
       const id = msg?.message_id;
       if (!Number.isFinite(id)) continue;
+      seenMessageIds.add(id);
       const currentHidden = !!msg?.is_hidden;
       const targetHidden = summarizedSet.has(id);
       if (currentHidden !== targetHidden) {
         updates.push({ message_id: id, is_hidden: targetHidden });
+      }
+    }
+
+    const hiddenMsgs = getChatMessages(`0-${lastId}`, {
+      role: "all",
+      hide_state: "hidden",
+      include_swipes: false,
+    });
+    for (const msg of hiddenMsgs) {
+      const id = msg?.message_id;
+      if (!Number.isFinite(id) || seenMessageIds.has(id)) continue;
+      if (!summarizedSet.has(id)) {
+        updates.push({ message_id: id, is_hidden: false });
       }
     }
   } else if (!shouldAutoHide || maxSummarizedFloor < 0) {
