@@ -102,8 +102,18 @@ const SUMMARY_LAZY_PATTERNS = [
 const SUMMARY_HEADER_PATTERN =
   /^---\s*[\r\n]+\d{1,4}-\d{1,2}-\d{1,2}\s+\|\s+.+:\s*$/m;
 
-const validateSummaryContent = (content, { kind = "总结" } = {}) => {
+const stripMarkdownCodeFence = (content) => {
   const text = typeof content === "string" ? content.trim() : "";
+  if (!text) return "";
+  const fencedMatch = text.match(/^```[^\r\n]*\r?\n([\s\S]*?)\r?\n```$/);
+  if (fencedMatch) {
+    return fencedMatch[1].trim();
+  }
+  return text;
+};
+
+const validateSummaryContent = (content, { kind = "总结" } = {}) => {
+  const text = stripMarkdownCodeFence(content);
   if (!text) {
     return `${kind}未保存：AI没有返回任何有效内容。`;
   }
@@ -264,18 +274,21 @@ const executeSummary = errorCatched(
     try {
       const params = await buildSummaryPromptParams(startFloor, endFloor);
       const aiMessage = await callSummaryApi(params);
-      const invalidReason = validateSummaryContent(aiMessage, { kind: "总结" });
+      const normalizedAiMessage = stripMarkdownCodeFence(aiMessage);
+      const invalidReason = validateSummaryContent(normalizedAiMessage, {
+        kind: "总结",
+      });
       if (invalidReason) {
         showSummaryHintFor(invalidReason, "error", 4200);
         toastr.error(invalidReason);
         return;
       }
-      let contentToSave = aiMessage;
+      let contentToSave = normalizedAiMessage;
       if (requireReview) {
         const result = await SillyTavern.callGenericPopup(
           `AI生成的总结（将保存为：${escapeHtml(entryName)}），可在下方编辑：`,
           SillyTavern.POPUP_TYPE.INPUT,
-          aiMessage,
+          normalizedAiMessage,
           { rows: 12, wide: true, okButton: "确定保存", cancelButton: "取消" },
         );
         if (typeof result !== "string") {
@@ -329,7 +342,10 @@ const regenerateAndReplaceEntry = errorCatched(async (entryName) => {
   try {
     const params = await buildRegeneratePromptParams(entryName);
     const aiMessage = await callSummaryApi(params);
-    const invalidReason = validateSummaryContent(aiMessage, { kind: "总结" });
+    const normalizedAiMessage = stripMarkdownCodeFence(aiMessage);
+    const invalidReason = validateSummaryContent(normalizedAiMessage, {
+      kind: "总结",
+    });
     if (invalidReason) {
       showSummaryHintFor(invalidReason, "error", 4200);
       toastr.error(invalidReason);
@@ -338,7 +354,7 @@ const regenerateAndReplaceEntry = errorCatched(async (entryName) => {
     const result = await SillyTavern.callGenericPopup(
       `重新生成的总结（${escapeHtml(entryName)}），可在下方编辑：`,
       SillyTavern.POPUP_TYPE.INPUT,
-      aiMessage,
+      normalizedAiMessage,
       { rows: 12, wide: true, okButton: "确定替换", cancelButton: "取消" },
     );
     if (typeof result !== "string") {
@@ -389,7 +405,8 @@ const executeMegaSummary = errorCatched(
     try {
       const params = await buildMegaSummaryPromptParams(summaryNames);
       const aiMessage = await callMegaSummaryApi(params);
-      const invalidReason = validateSummaryContent(aiMessage, {
+      const normalizedAiMessage = stripMarkdownCodeFence(aiMessage);
+      const invalidReason = validateSummaryContent(normalizedAiMessage, {
         kind: "大总结",
       });
       if (invalidReason) {
@@ -397,12 +414,12 @@ const executeMegaSummary = errorCatched(
         toastr.error(invalidReason);
         return;
       }
-      let contentToSave = aiMessage;
+      let contentToSave = normalizedAiMessage;
       if (requireReview) {
         const result = await SillyTavern.callGenericPopup(
           `AI生成的大总结（将保存为：${escapeHtml(entryName)}），可在下方编辑：`,
           SillyTavern.POPUP_TYPE.INPUT,
-          aiMessage,
+          normalizedAiMessage,
           { rows: 12, wide: true, okButton: "确定保存", cancelButton: "取消" },
         );
         if (typeof result !== "string") {
@@ -477,7 +494,10 @@ const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
   try {
     const params = await buildRegenerateMegaSummaryPromptParams(entryName);
     const aiMessage = await callMegaSummaryApi(params);
-    const invalidReason = validateSummaryContent(aiMessage, { kind: "大总结" });
+    const normalizedAiMessage = stripMarkdownCodeFence(aiMessage);
+    const invalidReason = validateSummaryContent(normalizedAiMessage, {
+      kind: "大总结",
+    });
     if (invalidReason) {
       showSummaryHintFor(invalidReason, "error", 4200);
       toastr.error(invalidReason);
@@ -486,7 +506,7 @@ const regenerateAndReplaceMegaEntry = errorCatched(async (entryName) => {
     const result = await SillyTavern.callGenericPopup(
       `重新生成的大总结（${escapeHtml(entryName)}），可在下方编辑：`,
       SillyTavern.POPUP_TYPE.INPUT,
-      aiMessage,
+      normalizedAiMessage,
       { rows: 12, wide: true, okButton: "确定替换", cancelButton: "取消" },
     );
     if (typeof result !== "string") {
