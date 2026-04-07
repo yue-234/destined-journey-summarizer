@@ -212,8 +212,9 @@ const chooseSummaryFailureAction = async ({
 // ---- 返回内容校验 ----
 
 const SUMMARY_INVALID_PATTERNS = [
-  /(?:^|\b)(error|invalid request|rate limit|context length exceeded|server error|network error|unauthorized|forbidden)(?:\b|:)/i,
-  /(请求失败|连接失败|服务错误|服务器错误|上下文长度超限|余额不足|未授权|无权限|模型忙)/i,
+  /^(?:error|invalid request|rate limit|context length exceeded|server error|network error|unauthorized|forbidden)\b[\s\S]*$/i,
+  /^(?:请求失败|连接失败|服务错误|服务器错误|上下文长度超限|余额不足|未授权|无权限|模型忙)[：:，,\s]*[\s\S]*$/i,
+  /^(?:HTTP\s*)?\d{3}\b[\s\S]*(?:error|invalid request|server error|network error|unauthorized|forbidden|请求失败|连接失败|服务错误|服务器错误|未授权|无权限)/i,
 ];
 
 const SUMMARY_LAZY_PATTERNS = [

@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.8.2 - 合并后的单文件脚本
  *
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-04-07T06:09:42.219Z
+ * 构建时间: 2026-04-07T06:43:49.792Z
  *
  * @author Rhys_z_瑞
  * @version 2.8.2
@@ -1217,6 +1217,7 @@ const fetchModelList = errorCatched(async (apiUrl, apiKey) => {
  */
 
 let _cachedChatWbName = null;
+const AUTO_HIDDEN_FLOORS_VAR_KEY = "summary_assistant_auto_hidden_floors";
 
 // ---- 世界书名称与绑定 ----
 
@@ -1543,6 +1544,36 @@ const buildSummarizedFloorSet = (entries, lastId, megaSummaryMap = {}) => {
   return set;
 };
 
+const loadAutoHiddenFloorIds = () => {
+  try {
+    const vars = getVariables({ type: "chat" });
+    const value = vars?.[AUTO_HIDDEN_FLOORS_VAR_KEY];
+    if (!Array.isArray(value)) return new Set();
+    return new Set(
+      value
+        .map((id) => Number.parseInt(id, 10))
+        .filter((id) => Number.isFinite(id) && id >= 0),
+    );
+  } catch (e) {
+    console.warn("加载自动隐藏楼层记录失败:", e);
+    return new Set();
+  }
+};
+
+const saveAutoHiddenFloorIds = (floorIds) => {
+  try {
+    const list = [...new Set([...floorIds])]
+      .filter((id) => Number.isFinite(id) && id >= 0)
+      .sort((a, b) => a - b);
+    insertOrAssignVariables(
+      { [AUTO_HIDDEN_FLOORS_VAR_KEY]: list },
+      { type: "chat" },
+    );
+  } catch (e) {
+    console.warn("保存自动隐藏楼层记录失败:", e);
+  }
+};
+
 const applySummarizedFloorsVisibility = errorCatched(async () => {
   const settings = getSettings();
   const shouldAutoHide = settings.autoHideSummarizedFloors !== false;
@@ -1555,12 +1586,13 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
     lastId,
     megaSummaryMap,
   );
+  const previousAutoHiddenSet = loadAutoHiddenFloorIds();
   let maxSummarizedFloor = -1;
   for (const id of summarizedSet) {
     if (id > maxSummarizedFloor) maxSummarizedFloor = id;
   }
   const updates = [];
-  const seenMessageIds = new Set();
+  const nextAutoHiddenSet = new Set();
   if (shouldAutoHide && maxSummarizedFloor >= 0) {
     const msgs = getChatMessages(`0-${maxSummarizedFloor}`, {
       role: "all",
@@ -1570,45 +1602,37 @@ const applySummarizedFloorsVisibility = errorCatched(async () => {
     for (const msg of msgs) {
       const id = msg?.message_id;
       if (!Number.isFinite(id)) continue;
-      seenMessageIds.add(id);
       const currentHidden = !!msg?.is_hidden;
       const targetHidden = summarizedSet.has(id);
+      if (targetHidden) {
+        nextAutoHiddenSet.add(id);
+      }
       if (currentHidden !== targetHidden) {
         updates.push({ message_id: id, is_hidden: targetHidden });
       }
     }
 
-    const hiddenMsgs = getChatMessages(`0-${lastId}`, {
-      role: "all",
-      hide_state: "hidden",
-      include_swipes: false,
-    });
-    for (const msg of hiddenMsgs) {
-      const id = msg?.message_id;
-      if (!Number.isFinite(id) || seenMessageIds.has(id)) continue;
-      if (!summarizedSet.has(id)) {
-        updates.push({ message_id: id, is_hidden: false });
-      }
+    for (const id of previousAutoHiddenSet) {
+      if (!Number.isFinite(id) || nextAutoHiddenSet.has(id)) continue;
+      updates.push({ message_id: id, is_hidden: false });
     }
   } else if (!shouldAutoHide || maxSummarizedFloor < 0) {
-    const hiddenMsgs = getChatMessages(`0-${lastId}`, {
-      role: "all",
-      hide_state: "hidden",
-      include_swipes: false,
-    });
-    for (const msg of hiddenMsgs) {
-      const id = msg?.message_id;
+    for (const id of previousAutoHiddenSet) {
       if (!Number.isFinite(id)) continue;
       updates.push({ message_id: id, is_hidden: false });
     }
   }
-  if (updates.length === 0) return false;
+  if (updates.length === 0) {
+    saveAutoHiddenFloorIds(nextAutoHiddenSet);
+    return false;
+  }
   for (let i = 0; i < updates.length; i += VISIBILITY_CHUNK_SIZE) {
     const isLast = i + VISIBILITY_CHUNK_SIZE >= updates.length;
     await setChatMessages(updates.slice(i, i + VISIBILITY_CHUNK_SIZE), {
       refresh: isLast ? "all" : "none",
     });
   }
+  saveAutoHiddenFloorIds(nextAutoHiddenSet);
   return true;
 });
 
@@ -2449,8 +2473,9 @@ const chooseSummaryFailureAction = async ({
 // ---- 返回内容校验 ----
 
 const SUMMARY_INVALID_PATTERNS = [
-  /(?:^|\b)(error|invalid request|rate limit|context length exceeded|server error|network error|unauthorized|forbidden)(?:\b|:)/i,
-  /(请求失败|连接失败|服务错误|服务器错误|上下文长度超限|余额不足|未授权|无权限|模型忙)/i,
+  /^(?:error|invalid request|rate limit|context length exceeded|server error|network error|unauthorized|forbidden)\b[\s\S]*$/i,
+  /^(?:请求失败|连接失败|服务错误|服务器错误|上下文长度超限|余额不足|未授权|无权限|模型忙)[：:，,\s]*[\s\S]*$/i,
+  /^(?:HTTP\s*)?\d{3}\b[\s\S]*(?:error|invalid request|server error|network error|unauthorized|forbidden|请求失败|连接失败|服务错误|服务器错误|未授权|无权限)/i,
 ];
 
 const SUMMARY_LAZY_PATTERNS = [
