@@ -3,7 +3,7 @@
  * 命定之诗总结助手 V2.8.2 - 合并后的单文件脚本
  *
  * 本文件由构建脚本自动生成，请勿手动修改
- * 构建时间: 2026-04-07T05:38:03.423Z
+ * 构建时间: 2026-04-07T06:09:42.219Z
  *
  * @author Rhys_z_瑞
  * @version 2.8.2
@@ -2325,6 +2325,127 @@ const showSummaryHintFor = (text, variant = "info", ms = 2800) => {
   }, ms);
 };
 
+const chooseSummaryFailureAction = async ({
+  title = "总结失败",
+  message = "",
+  retryLabel = "重新总结",
+  reviewLabel = "手动编辑",
+  cancelLabel = "取消",
+} = {}) => {
+  const doc = window.top?.document || document;
+  return await new Promise((resolve) => {
+    const overlay = doc.createElement("div");
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 10030;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(5, 6, 15, 0.72);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    `;
+
+    const dialog = doc.createElement("div");
+    dialog.style.cssText = `
+      width: min(92vw, 560px);
+      background: rgba(22, 24, 38, 0.98);
+      color: #eee;
+      border: 1px solid rgba(123, 104, 238, 0.45);
+      border-radius: 12px;
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+      padding: 18px 18px 16px;
+    `;
+
+    const titleEl = doc.createElement("div");
+    titleEl.style.cssText = `
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    `;
+    titleEl.textContent = title;
+
+    const messageEl = doc.createElement("div");
+    messageEl.style.cssText = `
+      white-space: pre-wrap;
+      line-height: 1.6;
+      font-size: 13px;
+      color: #ddd;
+      margin-bottom: 16px;
+      max-height: min(42vh, 320px);
+      overflow: auto;
+    `;
+    messageEl.textContent = message;
+
+    const actionsEl = doc.createElement("div");
+    actionsEl.style.cssText = `
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    `;
+
+    const buildButton = (label, action, extraCss = "") => {
+      const btn = doc.createElement("button");
+      btn.type = "button";
+      btn.textContent = label;
+      btn.style.cssText = `
+        min-width: 92px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(123, 104, 238, 0.35);
+        background: rgba(52, 58, 90, 0.92);
+        color: #fff;
+        cursor: pointer;
+        font-size: 13px;
+        ${extraCss}
+      `;
+      btn.addEventListener("click", () => {
+        overlay.remove();
+        resolve(action);
+      });
+      return btn;
+    };
+
+    actionsEl.appendChild(
+      buildButton(
+        retryLabel,
+        "retry",
+        "background: rgba(70, 82, 140, 0.95); border-color: rgba(123, 104, 238, 0.6);",
+      ),
+    );
+    actionsEl.appendChild(
+      buildButton(
+        reviewLabel,
+        "review",
+        "background: rgba(40, 92, 66, 0.95); border-color: rgba(40, 167, 69, 0.55);",
+      ),
+    );
+    actionsEl.appendChild(
+      buildButton(
+        cancelLabel,
+        "cancel",
+        "background: rgba(58, 58, 74, 0.95); border-color: rgba(180, 180, 200, 0.25);",
+      ),
+    );
+
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        overlay.remove();
+        resolve("cancel");
+      }
+    });
+
+    dialog.appendChild(titleEl);
+    dialog.appendChild(messageEl);
+    dialog.appendChild(actionsEl);
+    overlay.appendChild(dialog);
+    doc.body.appendChild(overlay);
+  });
+};
+
 // ---- 返回内容校验 ----
 
 const SUMMARY_INVALID_PATTERNS = [
@@ -2429,6 +2550,53 @@ const validateSummaryContent = (content, { kind = "总结" } = {}) => {
     return `${kind}未保存：缺少有效的分段标题格式。`;
   }
   return "";
+};
+
+const finalizeSummarySave = async (entryName, content, successText = null) => {
+  await upsertSummaryEntryByName(entryName, content);
+  showSummaryHintFor(
+    successText || `总结已生成：${entryName}`,
+    "success",
+    3200,
+  );
+  toastr.success(successText || `总结已保存：${entryName}`);
+};
+
+const finalizeMegaSummarySave = async (
+  entryName,
+  content,
+  summaryNames,
+  successText = null,
+) => {
+  await upsertMegaSummaryEntry(entryName, content, summaryNames);
+
+  const wbName = getActiveWorldbookName();
+  if (wbName) {
+    await updateWorldbookWith(wbName, (wb) => {
+      const arr = normalizeWorldbookEntries(wb);
+      for (const summaryName of summaryNames) {
+        const entry = arr.find((e) => e && e.name === summaryName);
+        if (entry) {
+          entry.enabled = false;
+          entry.disable = true;
+          if ("disabled" in entry) entry.disabled = true;
+        }
+      }
+      return Array.isArray(wb) ? arr : { ...wb, entries: arr };
+    });
+
+    const settings = getSettings();
+    if (settings.autoHideSummarizedFloors !== false) {
+      await applySummarizedFloorsVisibility();
+    }
+  }
+
+  showSummaryHintFor(
+    successText || `大总结已生成：${entryName}`,
+    "success",
+    3200,
+  );
+  toastr.success(successText || `大总结已保存：${entryName}`);
 };
 
 // ---- 总结计划 ----
@@ -2582,6 +2750,33 @@ const executeSummary = errorCatched(
       if (invalidReason) {
         showSummaryHintFor(invalidReason, "error", 4200);
         toastr.error(invalidReason);
+        const action = await chooseSummaryFailureAction({
+          title: "总结失败",
+          message: `${invalidReason}\n\n请选择后续操作：`,
+        });
+        if (action === "retry") {
+          await executeSummary(startFloor, endFloor, entryName, {
+            requireReview,
+          });
+        } else if (action === "review") {
+          const result = await SillyTavern.callGenericPopup(
+            `总结生成失败，可在下方手动编辑后保存（${escapeHtml(entryName)}）：`,
+            SillyTavern.POPUP_TYPE.INPUT,
+            normalizedAiMessage || invalidReason,
+            {
+              rows: 12,
+              wide: true,
+              okButton: "确定保存",
+              cancelButton: "取消",
+            },
+          );
+          if (typeof result === "string") {
+            await finalizeSummarySave(entryName, result);
+          } else {
+            showSummaryHintFor("已取消保存本次总结。", "info", 2200);
+            toastr.info("操作已取消。");
+          }
+        }
         return;
       }
       let contentToSave = normalizedAiMessage;
@@ -2599,14 +2794,35 @@ const executeSummary = errorCatched(
         }
         contentToSave = result;
       }
-      await upsertSummaryEntryByName(entryName, contentToSave);
-      showSummaryHintFor(`总结已生成：${entryName}`, "success", 3200);
-      toastr.success(`总结已保存：${entryName}`);
+      await finalizeSummarySave(entryName, contentToSave);
     } catch (error) {
       console.error("总结过程中出错:", error);
       const errMsg = formatErrorMessage(error);
-      showSummaryHintFor(`总结失败：${errMsg}`, "error", 4200);
+      const fullErrorMessage = `总结失败：${errMsg}`;
+      showSummaryHintFor(fullErrorMessage, "error", 4200);
       toastr.error(`总结失败: ${errMsg}`);
+      const action = await chooseSummaryFailureAction({
+        title: "总结失败",
+        message: `${fullErrorMessage}\n\n请选择后续操作：`,
+      });
+      if (action === "retry") {
+        await executeSummary(startFloor, endFloor, entryName, {
+          requireReview,
+        });
+      } else if (action === "review") {
+        const result = await SillyTavern.callGenericPopup(
+          `总结生成失败，可在下方手动编辑后保存（${escapeHtml(entryName)}）：`,
+          SillyTavern.POPUP_TYPE.INPUT,
+          fullErrorMessage,
+          { rows: 12, wide: true, okButton: "确定保存", cancelButton: "取消" },
+        );
+        if (typeof result === "string") {
+          await finalizeSummarySave(entryName, result);
+        } else {
+          showSummaryHintFor("已取消保存本次总结。", "info", 2200);
+          toastr.info("操作已取消。");
+        }
+      }
     }
   },
 );
@@ -2723,6 +2939,31 @@ const executeMegaSummary = errorCatched(
       if (invalidReason) {
         showSummaryHintFor(invalidReason, "error", 4200);
         toastr.error(invalidReason);
+        const action = await chooseSummaryFailureAction({
+          title: "大总结失败",
+          message: `${invalidReason}\n\n请选择后续操作：`,
+        });
+        if (action === "retry") {
+          await executeMegaSummary(summaryNames, entryName, { requireReview });
+        } else if (action === "review") {
+          const result = await SillyTavern.callGenericPopup(
+            `大总结生成失败，可在下方手动编辑后保存（${escapeHtml(entryName)}）：`,
+            SillyTavern.POPUP_TYPE.INPUT,
+            normalizedAiMessage || invalidReason,
+            {
+              rows: 12,
+              wide: true,
+              okButton: "确定保存",
+              cancelButton: "取消",
+            },
+          );
+          if (typeof result === "string") {
+            await finalizeMegaSummarySave(entryName, result, summaryNames);
+          } else {
+            showSummaryHintFor("已取消保存本次大总结。", "info", 2200);
+            toastr.info("操作已取消。");
+          }
+        }
         return;
       }
       let contentToSave = normalizedAiMessage;
@@ -2741,38 +2982,33 @@ const executeMegaSummary = errorCatched(
         contentToSave = result;
       }
 
-      // 保存大总结条目
-      await upsertMegaSummaryEntry(entryName, contentToSave, summaryNames);
-
-      // 禁用已被大总结的总结条目
-      const wbName = getActiveWorldbookName();
-      if (wbName) {
-        await updateWorldbookWith(wbName, (wb) => {
-          const arr = normalizeWorldbookEntries(wb);
-          for (const summaryName of summaryNames) {
-            const entry = arr.find((e) => e && e.name === summaryName);
-            if (entry) {
-              entry.enabled = false;
-              entry.disable = true;
-              if ("disabled" in entry) entry.disabled = true;
-            }
-          }
-          return Array.isArray(wb) ? arr : { ...wb, entries: arr };
-        });
-
-        const settings = getSettings();
-        if (settings.autoHideSummarizedFloors !== false) {
-          await applySummarizedFloorsVisibility();
-        }
-      }
-
-      showSummaryHintFor(`大总结已生成：${entryName}`, "success", 3200);
-      toastr.success(`大总结已保存：${entryName}`);
+      await finalizeMegaSummarySave(entryName, contentToSave, summaryNames);
     } catch (error) {
       console.error("大总结过程中出错:", error);
       const errMsg = formatErrorMessage(error);
-      showSummaryHintFor(`大总结失败：${errMsg}`, "error", 4200);
+      const fullErrorMessage = `大总结失败：${errMsg}`;
+      showSummaryHintFor(fullErrorMessage, "error", 4200);
       toastr.error(`大总结失败: ${errMsg}`);
+      const action = await chooseSummaryFailureAction({
+        title: "大总结失败",
+        message: `${fullErrorMessage}\n\n请选择后续操作：`,
+      });
+      if (action === "retry") {
+        await executeMegaSummary(summaryNames, entryName, { requireReview });
+      } else if (action === "review") {
+        const result = await SillyTavern.callGenericPopup(
+          `大总结生成失败，可在下方手动编辑后保存（${escapeHtml(entryName)}）：`,
+          SillyTavern.POPUP_TYPE.INPUT,
+          fullErrorMessage,
+          { rows: 12, wide: true, okButton: "确定保存", cancelButton: "取消" },
+        );
+        if (typeof result === "string") {
+          await finalizeMegaSummarySave(entryName, result, summaryNames);
+        } else {
+          showSummaryHintFor("已取消保存本次大总结。", "info", 2200);
+          toastr.info("操作已取消。");
+        }
+      }
     }
   },
 );
